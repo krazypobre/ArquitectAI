@@ -1,2 +1,15 @@
 flask
 openai
+werkzeug
+PyPDF2
+Pillow
+pytesseract
+python-docx
+python-pptx
+ezdxf
+pyautocad
+psd-tools
+pikepdf
+pdf2image
+requests
+

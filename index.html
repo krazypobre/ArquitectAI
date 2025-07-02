@@ -5,544 +5,1116 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ArquitectAI</title>
   <style>
-    :root {
-      --bg-primary: #0f172a;
-      --bg-secondary: #1e293b;
-      --accent: #38bdf8;
-      --text: #e2e8f0;
-      --text-secondary: #94a3b8;
-      --radius: 12px;
-    }
-
     * {
-      box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
     }
 
-    body, html {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      font-family: 'Segoe UI', sans-serif;
-      background: var(--bg-primary);
-      color: var(--text);
-      display: flex;
-      flex-direction: column;
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background-color: #282828;
+        color: #ececf1;
+        height: 100vh;
+        display: flex;
+        overflow: hidden;
     }
 
-    header {
-      padding: 1rem 2rem;
-      text-align: center;
-      background: var(--bg-secondary);
-      font-size: 1.5rem;
-      font-weight: bold;
-      border-bottom: 1px solid #334155;
+    /* Sidebar */
+    .sidebar {
+        width: 260px;
+        background-color: #202123;
+        border-right: 1px solid #4d4d4f;
+        display: flex;
+        flex-direction: column;
+        transition: transform 0.3s ease;
     }
 
-    #mainContainer {
-      display: flex;
-      flex: 1;
-      overflow: hidden;
+    .sidebar.hidden {
+        transform: translateX(-100%);
     }
 
-    #chatList {
-      width: 280px;
-      background: var(--bg-secondary);
-      border-right: 1px solid #334155;
-      display: flex;
-      flex-direction: column;
+    .sidebar-header {
+        padding: 12px 16px;
+        border-bottom: 1px solid #4d4d4f;
+        display: flex;
+        align-items: center;
+        gap: 12px;
     }
 
-    #newChatBtn {
-      margin: 1rem;
-      padding: 0.75rem 1rem;
-      background: var(--accent);
-      border: none;
-      color: white;
-      font-weight: bold;
-      border-radius: var(--radius);
-      cursor: pointer;
-      transition: background 0.3s;
+    .sidebar-toggle {
+        display: none;
+        width: 32px;
+        height: 32px;
+        background: transparent;
+        border: none;
+        color: #ececf1;
+        cursor: pointer;
+        border-radius: 4px;
+        font-size: 16px;
     }
 
-    #newChatBtn:hover {
-      background: #0ea5e9;
+    .sidebar-toggle:hover {
+        background-color: #40414f;
     }
 
-    #chats {
-      flex: 1;
-      overflow-y: auto;
-      list-style: none;
-      padding: 0 1rem;
+    .new-chat-btn {
+        flex: 1;
+        padding: 8px 12px;
+        background-color: #10a37f;
+        border: none;
+        border-radius: 6px;
+        color: white;
+        cursor: pointer;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 500;
+        transition: background-color 0.2s;
     }
 
-    #chats li {
-      padding: 0.75rem;
-      margin: 0.5rem 0;
-      background: #334155;
-      border-radius: var(--radius);
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      transition: background 0.2s;
+    .new-chat-btn:hover {
+        background-color: #0d8266;
     }
 
-    #chats li:hover {
-      background: #475569;
+    .chat-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px;
     }
 
-    #chats li.selected {
-      background: var(--accent);
-      color: white;
+    .chat-item {
+        padding: 10px 12px;
+        margin-bottom: 4px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        line-height: 1.4;
+        transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: relative; /* Added for dropdown positioning */
+    }
+
+    .chat-item:hover {
+        background-color: #40414f;
+    }
+
+    .chat-item.active {
+        background-color: #343541;
+    }
+
+    .chat-item-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .chat-item-title {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .chat-item-actions {
+        opacity: 0;
+        display: flex;
+        gap: 4px;
+        transition: opacity 0.2s;
+    }
+
+    .chat-item:hover .chat-item-actions {
+        opacity: 1;
+    }
+
+    .chat-action-btn {
+        width: 24px;
+        height: 24px;
+        background: transparent;
+        border: none;
+        color: #ececf1;
+        cursor: pointer;
+        border-radius: 3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+    }
+
+    .chat-messages {
+    height: 400px; /* Altura fija */
+    overflow-y: auto; /* Scroll vertical */
+    overflow-x: hidden; /* Sin scroll horizontal */
+    }
+    
+    .chat-action-btn:hover {
+        background-color: #4a4b5a;
+    }
+
+    .sidebar-footer {
+        padding: 16px;
+        border-top: 1px solid #4d4d4f;
+    }
+
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .user-info:hover {
+        background-color: #40414f;
+    }
+
+    .user-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 14px;
+    }
+
+    .user-details {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .user-name {
+        font-size: 14px;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .user-email {
+        font-size: 12px;
+        color: #9ca3af;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Main content area */
+    .main-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    /* Header con título y botones */
+    .header {
+        background-color: #202123;
+        border-bottom: 1px solid #4d4d4f;
+        padding: 12px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .mobile-sidebar-toggle {
+        display: none;
+        width: 32px;
+        height: 32px;
+        background: transparent;
+        border: none;
+        color: #ececf1;
+        cursor: pointer;
+        border-radius: 4px;
+        font-size: 16px;
+    }
+
+    .mobile-sidebar-toggle:hover {
+        background-color: #40414f;
+    }
+
+    .app-title {
+        font-size: 24px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .header-buttons {
+        display: flex;
+        gap: 12px;
+    }
+
+    .header-btn {
+        padding: 8px 16px;
+        background: transparent;
+        border: 1px solid #4d4d4f;
+        border-radius: 6px;
+        color: #ececf1;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .header-btn:hover {
+        background-color: #40414f;
+        border-color: #565869;
+    }
+
+    /* Main content */
+    .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        position: relative;
     }
 
     .chat-container {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      background: #f8fafc;
-    }
-
-    #chatMessages {
-      flex: 1;
-      overflow-y: auto;
-      padding: 2rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
+        height: 500px;         /* altura fija o máxima */
+        overflow-y: auto;      /* para que aparezca la barra vertical */
+        padding: 20px 0;
     }
 
     .message {
-      max-width: 60%;
-      padding: 1rem;
-      border-radius: var(--radius);
-      font-size: 1rem;
-      line-height: 1.5;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        display: flex;
+        gap: 16px;
     }
 
     .message.user {
-      background: var(--accent);
-      color: white;
-      align-self: flex-end;
+        background-color: #282828;
     }
 
-    .message.bot {
-      background: #e2e8f0;
-      color: #0f172a;
-      align-self: flex-start;
+    .message.assistant {
+        background-color: #282828;
     }
 
-    #chatForm {
-      padding: 1rem;
-      background: white;
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-      border-top: 1px solid #cbd5e1;
+    .message-avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
     }
 
-    #prompt {
-      flex: 1;
-      padding: 0.75rem 1rem;
-      border: 1px solid #cbd5e1;
-      border-radius: var(--radius);
-      font-size: 1rem;
+    .user-avatar-msg {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: bold;
     }
 
-    button[type="submit"], .file-input-label {
-      width: 44px;
-      height: 44px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--bg-primary);
-      color: white;
-      border-radius: 50%;
-      border: none;
-      cursor: pointer;
-      transition: background 0.3s;
+    .assistant-avatar-msg {
+        background: #10a37f;
+        color: white;
+        font-weight: bold;
     }
 
-    button[type="submit"]:hover, .file-input-label:hover {
-      background: var(--accent);
+    .message-content {
+        flex: 1;
+        line-height: 1.6;
+    }
+
+    .message-content p {
+        margin-bottom: 12px;
+    }
+
+    .message-content p:last-child {
+        margin-bottom: 0;
+    }
+
+    .message-content pre {
+        background-color: #2d2d2d;
+        padding: 12px;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin: 12px 0;
+    }
+
+    .message-content code {
+        background-color: #2d2d2d;
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-family: 'Monaco', 'Consolas', monospace;
+    }
+
+    /* Input area */
+    .input-container {
+        padding: 20px;
+        background-color: #343541;
+        border-top: 1px solid #4d4d4f;
+    }
+
+    .input-wrapper {
+        max-width: 800px;
+        margin: 0 auto;
+        position: relative;
+        display: flex;
+        gap: 8px;
+        align-items: flex-end;
+    }
+
+    .chat-input {
+        flex: 1;
+        padding: 12px 48px 12px 16px;
+        background-color: #40414f;
+        border: 1px solid #565869;
+        border-radius: 12px;
+        color: #ececf1;
+        font-size: 16px;
+        resize: none;
+        outline: none;
+        min-height: 48px;
+        max-height: 200px;
+    }
+
+    .chat-input:focus {
+        border-color: #10a37f;
+    }
+
+    .file-input-btn {
+        width: 40px;
+        height: 40px;
+        background-color: #40414f;
+        border: 1px solid #565869;
+        border-radius: 8px;
+        color: #ececf1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        transition: all 0.2s;
+    }
+
+    .file-input-btn:hover {
+        background-color: #4a4b5a;
+    }
+
+    .file-input-hidden {
+        display: none;
+    }
+
+    .send-button {
+        width: 40px;
+        height: 40px;
+        background-color: #10a37f;
+        border: none;
+        border-radius: 8px;
+        color: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.2s;
+    }
+
+    .send-button:hover {
+        background-color: #0d8266;
+    }
+
+    .send-button:disabled {
+        background-color: #565869;
+        cursor: not-allowed;
+    }
+
+    /* Welcome screen */
+    .welcome-screen {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 20px;
+    }
+
+    .welcome-subtitle {
+        font-size: 32px;
+        font-weight: 600;
+        margin-bottom: 32px;
+        color: #ececf1;
+    }
+
+    .example-prompts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 16px;
+        max-width: 800px;
+        width: 100%;
+    }
+
+    .example-prompt {
+        padding: 16px;
+        background-color: #40414f;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        border: 1px solid #565869;
+    }
+
+    .example-prompt:hover {
+        background-color: #4a4b5a;
+    }
+
+    .example-prompt h3 {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #ececf1;
+    }
+
+    .example-prompt p {
+        font-size: 14px;
+        color: #c5c5d2;
+    }
+
+    /* File preview */
+    .file-preview {
+        margin: 10px 0;
+        padding: 10px;
+        background-color: #40414f;
+        border-radius: 8px;
+        border: 1px solid #565869;
     }
 
     .file-preview img {
-      max-width: 200px;
-      border-radius: var(--radius);
+        max-width: 200px;
+        border-radius: 6px;
     }
 
-    .file-preview a {
-      color: var(--accent);
-      font-weight: 600;
-      text-decoration: none;
+    /* Dropdown para opciones de chat */
+    .chat-options-menu { /* Renamed from .chat-options */
+        position: absolute;
+        top: 50%; /* Adjusted for better positioning relative to chat item */
+        right: 10px;
+        transform: translateY(-50%);
+        background-color: #40414f;
+        border: 1px solid #565869;
+        border-radius: 6px;
+        padding: 8px 0;
+        min-width: 120px;
+        z-index: 1000;
+        display: none;
+    }
+
+    .chat-options-menu.visible {
+        display: block;
+    }
+
+    .chat-options-menu button {
+        width: 100%;
+        padding: 8px 16px;
+        background: none;
+        border: none;
+        color: #ececf1;
+        cursor: pointer;
+        text-align: left;
+        font-size: 14px;
+        transition: background-color 0.2s;
+    }
+
+    .chat-options-menu button:hover {
+        background-color: #4a4b5a;
+    }
+
+    /* Overlay para móvil */
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 998;
+    }
+
+    .sidebar-overlay.visible {
+        display: block;
+    }
+
+    /* Media queries */
+    @media (max-width: 768px) {
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            z-index: 999;
+            transform: translateX(-100%);
+        }
+
+        .sidebar.visible {
+            transform: translateX(0);
+        }
+
+        .mobile-sidebar-toggle {
+            display: flex;
+        }
+        
+        .header {
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .header-buttons {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .message {
+            padding: 16px;
+        }
+
+        .app-title {
+            font-size: 20px;
+        }
     }
   </style>
 </head>
 <body>
-  <header>ArquitectAI</header>
-
-  <div id="mainContainer">
-    <aside id="chatList">
-      <button id="newChatBtn" title="Nuevo chat">+ Nuevo chat</button>
-      <ul id="chats"></ul>
-    </aside>
-
-    <div class="chat-container">
-      <div id="chatMessages"></div>
-
-      <form id="chatForm" enctype="multipart/form-data">
-        <textarea id="prompt" name="prompt" placeholder="Escribe tu mensaje..." rows="1" required></textarea>
-
-        <label for="fileInput" class="file-input-label" title="Adjuntar archivo" aria-label="Adjuntar archivo">
-          📎
-        </label>
-        <input type="file" id="fileInput" name="file" accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg,.bmp,.svg,.tiff,.webp,.heic,.gif,.docx,.pptx" />
-
-        <button type="submit" title="Enviar mensaje" aria-label="Enviar mensaje">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20" viewBox="0 0 24 24">
-            <line x1="22" y1="2" x2="11" y2="13"></line>
-            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-          </svg>
-        </button>
-      </form>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <button class="new-chat-btn" onclick="createNewChat()">
+                <span>+</span>
+                Nuevo Chat
+            </button>
+        </div>
+        
+        <div class="chat-list" id="chatList">
+            <!-- Los chats se generarán dinámicamente aquí -->
+        </div>
+        
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar">AI</div>
+                <div class="user-details">
+                    <div class="user-name">ArquitectAI</div>
+                    <div class="user-email">Tu asistente de arquitectura</div>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
 
-  <script>
-    const chatMessages = document.getElementById('chatMessages');
-    const chatForm = document.getElementById('chatForm');
-    const promptInput = document.getElementById('prompt');
-    const fileInput = document.getElementById('fileInput');
-    promptInput.addEventListener('keydown', function (e) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault(); // evita salto de línea
-    chatForm.requestSubmit(); // envía el formulario
-  }
+    <!-- Overlay para móvil -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
+
+    <!-- Área principal -->
+    <div class="main-area">
+        <!-- Header con título y botones principales -->
+        <div class="header">
+            <div class="header-left">
+                <button class="mobile-sidebar-toggle" onclick="toggleMobileSidebar()">
+                    ☰
+                </button>
+                <h1 class="app-title">ArquitectAI</h1>
+            </div>
+            
+            <div class="header-buttons">
+                <!-- Botón de opciones eliminado -->
+                
+                <button class="header-btn" onclick="showChatHistory()">
+                    <span>📋</span>
+                    Historial
+                </button>
+            </div>
+        </div>
+
+        <!-- Contenido principal -->
+        <div class="main-content">
+            <div class="chat-container" id="chatContainer">
+                <div class="welcome-screen" id="welcomeScreen">
+                    <h2 class="welcome-subtitle">¿En qué puedo ayudarte hoy?</h2>
+                    
+                    <div class="example-prompts">
+                        <div class="example-prompt" onclick="sendExampleMessage('Hola! Necesito que me expliques unos conceptos')">
+                            <h3>💡 Explicar conceptos</h3>
+                            <p>¿Qué conceptos necesitas saber?</p>
+                        </div>
+                        
+                        <div class="example-prompt" onclick="sendExampleMessage('Ayúdame a acotar un plano')">
+                            <h3>📏 Ayuda con acotaciones</h3>
+                            <p>Ayúdame a acotar un plano</p>
+                        </div>
+                        
+                        <div class="example-prompt" onclick="sendExampleMessage('Dame ideas creativas para un proyecto')">
+                            <h3>🎨 Ideas creativas</h3>
+                            <p>¿Necesitas ideas creativas para un proyecto?</p>
+                        </div>
+                        
+                        <div class="example-prompt" onclick="sendExampleMessage('Hola! Te voy a preguntar sobre un artista, quiero que me cuentes todo lo que sepas de el')">
+                            <h3>🌍 Información sobre artistas</h3>
+                            <p>¿Necesitas información?</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Área de entrada -->
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <button class="file-input-btn" onclick="document.getElementById('fileInput').click()" title="Adjuntar archivo">
+                        📎
+                    </button>
+                    <input type="file" id="fileInput" class="file-input-hidden" 
+                           accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg,.bmp,.svg,.tiff,.webp,.heic,.gif,.docx,.pptx,.psd,.indd"
+                           onchange="handleFileSelect(event)">
+                    
+                    <textarea 
+                        class="chat-input" 
+                        id="chatInput" 
+                        placeholder="Envía un mensaje..."
+                        rows="1"
+                        onkeydown="handleKeyDown(event)"
+                        oninput="adjustTextareaHeight()"
+                    ></textarea>
+                    
+                    <button class="send-button" id="sendButton" onclick="sendMessage()" title="Enviar mensaje">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let chats = [];
+        let currentChatId = null;
+        let isWelcomeVisible = true;
+        let chatHistory = [];
+
+        // Inicializar
+        function loadChats() {
+            const saved = localStorage.getItem('arquitectAI_chats');
+            if (saved) {
+                chats = JSON.parse(saved);
+            } else {
+                chats = [];
+            }
+        }
+
+        function saveChats() {
+            localStorage.setItem('arquitectAI_chats', JSON.stringify(chats));
+        }
+
+        function createNewChat() {
+            const id = Date.now().toString();
+            const newChat = {
+                id,
+                nombre: `Chat ${chats.length + 1}`,
+                mensajes: []
+            };
+            chats.unshift(newChat); // Añadir al principio
+            currentChatId = id;
+            saveChats();
+            resetToWelcomeScreen();
+            renderChatList();
+        }
+
+        function getBotResponse(userInput) {
+            userInput = userInput.toLowerCase().trim();
+            
+            // Respuestas para saludos básicos
+            if (userInput.includes('hola') || userInput.includes('hi')) {
+                return '¡Hola! Soy ArquitectAI, tu asistente especializado en arquitectura. ¿En qué puedo ayudarte hoy?';
+            }
+            
+            if (userInput.includes('cómo estás') || userInput.includes('como estas')) {
+                return '¡Estoy funcionando perfectamente! Gracias por preguntar. ¿Y tú cómo estás?';
+            }
+
+            if (userInput.includes('gracias') || userInput.includes('muchas gracias')) {
+                return 'De nada, estoy aquí para ayudarte. ¿Hay algo más en lo que pueda asistirte?';
+            }
+
+            if (userInput.includes('adiós') || userInput.includes('chao')) {
+                return '¡Hasta pronto! Que tengas un excelente día.';
+            }
+
+            // Respuestas para preguntas comunes sobre arquitectura
+            if (userInput.includes('explicar conceptos') || userInput.includes('conceptos de arquitectura')) {
+                return 'Claro, ¿qué concepto específico de arquitectura te gustaría que te explique? Por ejemplo, puedo hablarte sobre el estilo Bauhaus, la sostenibilidad en la construcción, o la importancia de la luz natural en el diseño.';
+            }
+
+            if (userInput.includes('acotar un plano') || userInput.includes('ayuda con acotaciones')) {
+                return 'Para acotar un plano correctamente, es fundamental seguir ciertas normas. ¿Estás trabajando con un software específico como AutoCAD o Revit, o necesitas principios generales de acotación?';
+            }
+
+            if (userInput.includes('ideas creativas') || userInput.includes('proyecto de arquitectura')) {
+                return '¡Me encanta la creatividad! Para darte las mejores ideas, cuéntame un poco más sobre tu proyecto: ¿Cuál es su propósito, qué tipo de espacio es, y qué estilo o materiales te interesan?';
+            }
+
+            if (userInput.includes('información sobre artistas') || userInput.includes('arquitectos famosos')) {
+                return 'Con gusto te proporciono información sobre artistas o arquitectos. ¿Hay alguien en particular que te interese, como Zaha Hadid, Frank Lloyd Wright, o Le Corbusier?';
+            }
+
+            // Respuestas más generales y coherentes
+            if (userInput.includes('qué puedes hacer') || userInput.includes('para qué sirves')) {
+                return 'Soy ArquitectAI, un asistente diseñado para ayudarte con consultas sobre arquitectura, diseño, construcción, normativas, historia de la arquitectura, y mucho más. ¡Pregúntame lo que necesites!';
+            }
+
+            if (userInput.includes('dime algo interesante')) {
+                return '¿Sabías que el Panteón de Roma, construido hace casi 2000 años, sigue siendo la cúpula de hormigón sin armar más grande del mundo? Es una maravilla de la ingeniería romana.';
+            }
+            
+            // Respuesta por defecto más útil
+            return 'Entiendo. Para poder ayudarte mejor, ¿podrías darme más detalles sobre lo que necesitas o reformular tu pregunta? Estoy aquí para asistirte en temas de arquitectura.';
+         }
+
+        function selectChat(id) {
+            if (currentChatId === id) return;
+            currentChatId = id;
+            renderMessages();
+            renderChatList();
+            
+            // Cerrar sidebar en móvil
+            if (window.innerWidth <= 768) {
+                closeMobileSidebar();
+            }
+        }
+
+        function renderChatList() {
+            const chatList = document.getElementById('chatList');
+            chatList.innerHTML = '';
+            
+            chats.forEach(chat => {
+                const chatItem = document.createElement('div');
+                chatItem.className = `chat-item ${chat.id === currentChatId ? 'active' : ''}`;
+                chatItem.onclick = () => selectChat(chat.id);
+                
+                chatItem.innerHTML = `
+                    <div class="chat-item-content">
+                        <div class="chat-item-title">${chat.nombre}</div>
+                    </div>
+                    <div class="chat-item-actions">
+                        <button class="chat-action-btn" onclick="event.stopPropagation(); toggleChatOptionsMenu(event, '${chat.id}')" title="Opciones del chat">
+                            ⋯
+                        </button>
+                        <div class="chat-options-menu" id="chatOptionsMenu-${chat.id}">
+                            <button onclick="event.stopPropagation(); renameChatInSidebar('${chat.id}')">Renombrar</button>
+                            <button onclick="event.stopPropagation(); deleteChatFromSidebar('${chat.id}')">Eliminar</button>
+                        </div>
+                    </div>
+                `;
+                
+                chatList.appendChild(chatItem);
+            });
+        }
+
+        function toggleChatOptionsMenu(event, chatId) {
+            event.stopPropagation(); // Prevent selecting the chat when clicking the menu button
+            const menu = document.getElementById(`chatOptionsMenu-${chatId}`);
+            // Close all other menus
+            document.querySelectorAll('.chat-options-menu').forEach(m => {
+                if (m.id !== `chatOptionsMenu-${chatId}`) {
+                    m.classList.remove('visible');
+                }
+            });
+            menu.classList.toggle('visible');
+        }
+
+        // Close menu when clicking outside
+        document.addEventListener('click', function(event) {
+            document.querySelectorAll('.chat-options-menu').forEach(menu => {
+                if (!menu.contains(event.target) && !event.target.classList.contains('chat-action-btn')) {
+                    menu.classList.remove('visible');
+                }
+            });
+        });
+
+
+        function renameChatInSidebar(chatId) {
+            const chat = chats.find(c => c.id === chatId);
+            if (!chat) return;
+
+            const newName = prompt('Nuevo nombre para el chat:', chat.nombre);
+            if (newName && newName.trim()) {
+                chat.nombre = newName.trim();
+                saveChats();
+                renderChatList();
+            }
+            document.getElementById(`chatOptionsMenu-${chatId}`).classList.remove('visible'); // Close menu
+        }
+
+        function deleteChatFromSidebar(chatId) {
+            const chat = chats.find(c => c.id === chatId);
+            if (!chat) return;
+
+            if (confirm(`¿Eliminar "${chat.nombre}"? Esta acción no se puede deshacer.`)) {
+                chats = chats.filter(c => c.id !== chatId);
+                
+                if (chats.length === 0) {
+                    createNewChat();
+                } else if (currentChatId === chatId) {
+                    selectChat(chats[0].id);
+                } else {
+                    renderChatList();
+                }
+                
+                saveChats();
+            }
+            document.getElementById(`chatOptionsMenu-${chatId}`).classList.remove('visible'); // Close menu
+        }
+
+        function renderMessages() {
+            const chatContainer = document.getElementById('chatContainer');
+            chatContainer.innerHTML = '';
+            
+            if (!currentChatId) return;
+
+            const chat = chats.find(c => c.id === currentChatId);
+            if (!chat || chat.mensajes.length === 0) {
+                resetToWelcomeScreen();
+                return;
+            }
+
+            isWelcomeVisible = false;
+            chat.mensajes.forEach(msg => {
+                if (msg.tipo === 'texto') {
+                    addMessageToDOM(msg.sender, msg.texto);
+                } else if (msg.tipo === 'archivo') {
+                    addFilePreviewToDOM(msg.fileName, msg.fileType, msg.fileURL);
+                }
+            });
+            
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function resetToWelcomeScreen() {
+            const chatContainer = document.getElementById('chatContainer');
+            chatContainer.innerHTML = `
+                <div class="welcome-screen" id="welcomeScreen">
+                    <h2 class="welcome-subtitle">¿En qué puedo ayudarte hoy?</h2>
+                    
+                    <div class="example-prompts">
+                        <div class="example-prompt" onclick="sendExampleMessage('Hola! Necesito que me expliques unos conceptos')">
+                            <h3>💡 Explicar conceptos</h3>
+                            <p>¿Qué conceptos necesitas saber?</p>
+                        </div>
+                        
+                        <div class="example-prompt" onclick="sendExampleMessage('Ayúdame a acotar un plano')">
+                            <h3>📏 Ayuda con acotaciones</h3>
+                            <p>Ayúdame a acotar un plano</p>
+                        </div>
+                        
+                        <div class="example-prompt" onclick="sendExampleMessage('Dame ideas creativas para un proyecto')">
+                            <h3>🎨 Ideas creativas</h3>
+                            <p>¿Necesitas ideas creativas para un proyecto?</p>
+                        </div>
+                        
+                        <div class="example-prompt" onclick="sendExampleMessage('Hola! Te voy a preguntar sobre un artista, quiero que me cuentes todo lo que sepas de el')">
+                            <h3>🌍 Información sobre artistas</h3>
+                            <p>¿Necesitas información?</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            isWelcomeVisible = true;
+        }
+
+        function adjustTextareaHeight() {
+            const textarea = document.getElementById('chatInput');
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+        }
+
+        function handleKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            if (!currentChatId) {
+                createNewChat();
+            }
+
+            const chat = chats.find(c => c.id === currentChatId);
+            if (!chat) return;
+            
+            hideWelcomeScreen();
+            
+            // Agregar mensaje del usuario
+            chat.mensajes.push({ tipo: 'texto', texto: message, sender: 'user' });
+            addMessageToDOM('user', message);
+            
+            // Actualizar título del chat si es el primer mensaje
+            if (chat.mensajes.length === 1) {
+                chat.nombre = message.length > 30 ? message.substring(0, 30) + '...' : message;
+                renderChatList();
+            }
+            
+            input.value = '';
+            adjustTextareaHeight();
+            
+            // Enviar prompt al backend con Ollama
+fetch('/api/generar-texto', {
+    method: 'POST',
+    body: new URLSearchParams({ prompt: message })
+})
+.then(response => response.json())
+.then(data => {
+    const respuesta = data.respuesta || 'Error: sin respuesta.';
+    chat.mensajes.push({ tipo: 'texto', texto: respuesta, sender: 'assistant' });
+    addMessageToDOM('assistant', respuesta);
+    saveChats();
+})
+.catch(error => {
+    console.error('Error al contactar con el backend:', error);
+    chat.mensajes.push({ tipo: 'texto', texto: 'Error al obtener respuesta del asistente.', sender: 'assistant' });
+    addMessageToDOM('assistant', 'Error al obtener respuesta del asistente.');
+    saveChats();
 });
 
-    const chatsUl = document.getElementById('chats');
-    const newChatBtn = document.getElementById('newChatBtn');
-
-    let chats = [];
-    let currentChatId = null;
-    let menuOpenForId = null;
-
-    function loadChats() {
-      const saved = localStorage.getItem('arquitectAI_chats');
-      if (saved) {
-        chats = JSON.parse(saved);
-      } else {
-        chats = [];
-      }
-    }
-
-    function saveChats() {
-      localStorage.setItem('arquitectAI_chats', JSON.stringify(chats));
-    }
-
-    function createNewChat() {
-      const id = Date.now().toString();
-      const newChat = {
-        id,
-        nombre: `Chat ${chats.length + 1}`,
-        mensajes: []
-      };
-      chats.push(newChat);
-      saveChats();
-      renderChatList();
-      selectChat(id);
-    }
-
-    function renderChatList() {
-      chatsUl.innerHTML = '';
-
-      chats.forEach(chat => {
-        const li = document.createElement('li');
-        li.classList.toggle('selected', chat.id === currentChatId);
-
-        // Nombre editable
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = chat.nombre;
-        nameSpan.classList.add('chat-name');
-        li.appendChild(nameSpan);
-
-        // Botón menú
-        const menuBtn = document.createElement('button');
-        menuBtn.innerHTML = '⋯';
-        menuBtn.classList.add('menu-btn');
-        menuBtn.title = 'Opciones';
-        li.appendChild(menuBtn);
-
-        // Menú desplegable
-        const menuDropdown = document.createElement('div');
-        menuDropdown.classList.add('menu-dropdown');
-
-        const renameBtn = document.createElement('button');
-        renameBtn.textContent = 'Renombrar';
-        const shareBtn = document.createElement('button');
-        shareBtn.textContent = 'Compartir';
-        const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = 'Eliminar';
-
-        menuDropdown.appendChild(renameBtn);
-        menuDropdown.appendChild(shareBtn);
-        menuDropdown.appendChild(deleteBtn);
-
-        li.appendChild(menuDropdown);
-
-        // Click para seleccionar chat
-        nameSpan.addEventListener('click', () => {
-          selectChat(chat.id);
-          closeAllMenus();
-        });
-        li.addEventListener('click', (e) => {
-          if (e.target === menuBtn || menuDropdown.contains(e.target)) return;
-          selectChat(chat.id);
-          closeAllMenus();
-        });
-
-        // Mostrar/ocultar menú
-        menuBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          if (menuOpenForId === chat.id) {
-            closeAllMenus();
-          } else {
-            closeAllMenus();
-            menuDropdown.classList.add('visible');
-            menuOpenForId = chat.id;
-          }
-        });
-
-        // Renombrar funcionalidad
-        renameBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          closeAllMenus();
-          makeChatNameEditable(chat.id, nameSpan);
-        });
-
-        // Compartir funcionalidad (simple copy al portapapeles del texto del chat)
-        shareBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          closeAllMenus();
-          const chatToShare = chats.find(c => c.id === chat.id);
-          if (!chatToShare) return;
-          const text = chatToShare.mensajes.map(m => `${m.sender === 'user' ? 'Tú' : 'Bot'}: ${m.tipo === 'texto' ? m.texto : '[Archivo: '+m.fileName+']'}`).join('\n');
-          navigator.clipboard.writeText(text).then(() => {
-            alert('Contenido del chat copiado al portapapeles.');
-          }).catch(() => {
-            alert('No se pudo copiar al portapapeles.');
-          });
-        });
-
-        // Eliminar funcionalidad
-        deleteBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          closeAllMenus();
-          if (confirm(`¿Eliminar "${chat.nombre}"? Esta acción no se puede deshacer.`)) {
-            deleteChat(chat.id);
-          }
-        });
-
-        chatsUl.appendChild(li);
-      });
-    }
-
-    // Hacer nombre editable y guardar cambio
-    function makeChatNameEditable(chatId, nameSpan) {
-      nameSpan.setAttribute('contenteditable', 'true');
-      nameSpan.focus();
-
-      // Poner cursor al final
-      document.execCommand('selectAll', false, null);
-      document.getSelection().collapseToEnd();
-
-      function finishEditing() {
-        nameSpan.removeAttribute('contenteditable');
-        const newName = nameSpan.textContent.trim();
-        if (newName.length === 0) {
-          // Revertir a nombre previo si vacio
-          const chat = chats.find(c => c.id === chatId);
-          nameSpan.textContent = chat ? chat.nombre : 'Chat sin nombre';
-        } else {
-          const chat = chats.find(c => c.id === chatId);
-          if (chat) {
-            chat.nombre = newName;
+            
             saveChats();
-            renderChatList();
-          }
         }
-        cleanup();
-      }
-      function cleanup() {
-        nameSpan.removeEventListener('blur', finishEditing);
-        nameSpan.removeEventListener('keydown', onKeyDown);
-      }
-      function onKeyDown(e) {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          finishEditing();
-        } else if (e.key === 'Escape') {
-          e.preventDefault();
-          cleanup();
-          renderChatList();
+
+        function sendExampleMessage(message) {
+            const input = document.getElementById('chatInput');
+            input.value = message;
+            sendMessage();
         }
-      }
-      nameSpan.addEventListener('blur', finishEditing);
-      nameSpan.addEventListener('keydown', onKeyDown);
-    }
 
-    function closeAllMenus() {
-      document.querySelectorAll('.menu-dropdown.visible').forEach(menu => menu.classList.remove('visible'));
-      menuOpenForId = null;
-    }
-
-    function selectChat(id) {
-      currentChatId = id;
-      renderChatList();
-      renderMessages();
-      closeAllMenus();
-    }
-
-    function deleteChat(id) {
-      chats = chats.filter(c => c.id !== id);
-      if (currentChatId === id) {
-        currentChatId = chats.length ? chats[0].id : null;
-      }
-      saveChats();
-      renderChatList();
-      renderMessages();
-    }
-
-    function renderMessages() {
-      chatMessages.innerHTML = '';
-      if (!currentChatId) return;
-
-      const chat = chats.find(c => c.id === currentChatId);
-      if (!chat) return;
-
-      chat.mensajes.forEach(msg => {
-        if (msg.tipo === 'texto') {
-          appendMessage(msg.texto, msg.sender);
-        } else if (msg.tipo === 'archivo') {
-          appendFilePreview(msg.fileName, msg.fileType, msg.fileURL);
+        function addMessageToDOM(sender, content) {
+            const chatContainer = document.getElementById('chatContainer');
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            
+            if (sender === 'user') {
+                avatar.className += ' user-avatar-msg';
+                avatar.textContent = 'U';
+            } else {
+                avatar.className += ' assistant-avatar-msg';
+                avatar.innerHTML = '🏗️';
+            }
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            messageContent.innerHTML = `<p>${content}</p>`;
+            
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(messageContent);
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
         }
-      });
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    function appendMessage(text, sender) {
-      const div = document.createElement('div');
-      div.classList.add('message', sender);
-      div.textContent = text;
-      chatMessages.appendChild(div);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    function appendFilePreview(name, type, url) {
-      const div = document.createElement('div');
-      div.classList.add('file-preview');
-      div.title = name;
-
-      if (type.startsWith('image/')) {
-        const img = document.createElement('img');
-        img.src = url;
-        img.style.maxWidth = '150px';
-        img.style.borderRadius = '10px';
-        img.onload = () => URL.revokeObjectURL(url);
-        div.appendChild(img);
-      } else if (type === 'application/pdf') {
-        const link = document.createElement('a');
-        link.href = url;
-        link.target = '_blank';
-        link.textContent = `📄 ${name}`;
-        div.appendChild(link);
-      } else {
-        div.textContent = `📎 ${name}`;
-      }
-      chatMessages.appendChild(div);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    chatForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      if (!currentChatId) {
-        alert('Crea o selecciona un chat primero.');
-        return;
-      }
-
-      const prompt = promptInput.value.trim();
-      const file = fileInput.files[0];
-
-      if (!prompt && !file) return;
-
-      const chat = chats.find(c => c.id === currentChatId);
-      if (!chat) return;
-
-      if (prompt) {
-        chat.mensajes.push({ tipo: 'texto', texto: prompt, sender: 'user' });
-        appendMessage(prompt, 'user');
-      }
-
-      if (file) {
-        const fileURL = URL.createObjectURL(file);
-        chat.mensajes.push({ tipo: 'archivo', fileName: file.name, fileType: file.type, fileURL, sender: 'user' });
-        appendFilePreview(file.name, file.type, fileURL);
-      }
-
-      promptInput.value = '';
-      fileInput.value = '';
-      promptInput.focus();
-
-      chat.mensajes.push({ tipo: 'texto', texto: 'Escribiendo...', sender: 'bot' });
-      appendMessage('Escribiendo...', 'bot');
-
-      saveChats();
-
-      try {
-        const formData = new FormData();
-        if (prompt) formData.append('prompt', prompt);
-        if (file) formData.append('file', file);
-
-        const res = await fetch('/api/generar-texto', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!res.ok) throw new Error('Error en la respuesta del servidor');
-
-        const data = await res.json();
-
-        // Quitar "Escribiendo..."
-        chat.mensajes = chat.mensajes.filter(m => m.texto !== 'Escribiendo...');
-        renderMessages();
-
-        chat.mensajes.push({ tipo: 'texto', texto: data.respuesta, sender: 'bot' });
-        appendMessage(data.respuesta, 'bot');
-
-        saveChats();
-      } catch (error) {
-        chat.mensajes = chat.mensajes.filter(m => m.texto !== 'Escribiendo...');
-        renderMessages();
-        appendMessage('Error al conectar con el servidor.', 'bot');
-      }
-    });
-
-    newChatBtn.addEventListener('click', () => {
-      createNewChat();
-    });
-
-    // Cerrar menú al hacer click fuera
-    document.addEventListener('click', () => {
-      closeAllMenus();
-    });
-
-    // Inicialización
+           document.addEventListener('DOMContentLoaded', function() {
     loadChats();
-    if (chats.length === 0) createNewChat();
-    else selectChat(chats[0].id);
-  </script>
+    if (chats.length === 0) {
+        createNewChat();
+    } else {
+        selectChat(chats[0].id);
+    }
+    adjustTextareaHeight();
+    renderChatList();
+});
+  
+function hideWelcomeScreen() {
+    const welcome = document.getElementById('welcomeScreen');
+    if (welcome) welcome.remove();
+}
+
+function addFilePreviewToDOM(fileName, fileType, fileURL) {
+    const chatContainer = document.getElementById('chatContainer');
+
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message user`;
+
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar user-avatar-msg';
+    avatar.textContent = 'U';
+
+    const content = document.createElement('div');
+    content.className = 'message-content';
+
+    if (fileType.startsWith('image/')) {
+        content.innerHTML = `
+            <p>Archivo adjunto: ${fileName}</p>
+            <img src="${fileURL}" alt="${fileName}" style="max-width: 200px; border-radius: 8px;" />
+        `;
+    } else {
+        content.innerHTML = `<p>Archivo adjunto: <a href="${fileURL}" target="_blank">${fileName}</a></p>`;
+    }
+
+    messageDiv.appendChild(avatar);
+    messageDiv.appendChild(content);
+    chatContainer.appendChild(messageDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const fileURL = URL.createObjectURL(file);
+    const chat = chats.find(c => c.id === currentChatId);
+    if (!chat) return;
+
+    chat.mensajes.push({
+        tipo: 'archivo',
+        fileName: file.name,
+        fileType: file.type,
+        fileURL: fileURL
+    });
+
+    addMessageToDOM('user', `Archivo adjunto: ${file.name}`); // Show file attachment as a user message
+    saveChats();
+}
+
+// Mobile sidebar toggle functions
+function toggleMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    sidebar.classList.toggle('visible');
+    overlay.classList.toggle('visible');
+}
+
+function closeMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    sidebar.classList.remove('visible');
+    overlay.classList.remove('visible');
+}
+
+// Placeholder for showChatHistory (if not implemented elsewhere)
+function showChatHistory() {
+    alert('La función de historial de chat aún no está implementada.');
+}
+
+</script>
 </body>
 </html>
-
