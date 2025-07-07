@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <title>Login / Registro</title>
+</head>
+<body>
+    
+    <h1>Iniciar Sesión</h1>
+    <form id="login-form">
+        <label for="login-username">Usuario:</label>
+        <input type="text" id="login-username" name="username" required />
+        <label for="login-password">Contraseña:</label>
+        <input type="password" id="login-password" name="password" required />
+        <button type="submit">Entrar</button>
+    </form>
+
+    <h1>Registrarse</h1>
+    <form id="register-form">
+        <label for="register-username">Usuario:</label>
+        <input type="text" id="register-username" name="username" required />
+        <label for="register-password">Contraseña:</label>
+        <input type="password" id="register-password" name="password" required />
+        <button type="submit">Crear cuenta</button>
+    </form>
+
+    <div id="message"></div>
+
+    <script>
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const messageDiv = document.getElementById('message');
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value.trim();
+            const response = await fetch('/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username, password})
+            });
+            const data = await response.json();
+            if (data.success) {
+                messageDiv.textContent = 'Inicio de sesión correcto';
+                // Redirigir a la página principal
+                window.location.href = '/';
+            } else {
+                messageDiv.textContent = data.error || 'Error al iniciar sesión';
+            }
+        });
+
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('register-username').value.trim();
+            const password = document.getElementById('register-password').value.trim();
+            const response = await fetch('/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username, password})
+            });
+            const data = await response.json();
+            if (data.success) {
+                messageDiv.textContent = 'Registro correcto. Ahora inicia sesión.';
+            } else {
+                messageDiv.textContent = data.error || 'Error al registrarse';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -20,6 +20,181 @@
         overflow: hidden;
     }
 
+    /* Auth Modal Styles */
+    .auth-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        backdrop-filter: blur(5px);
+    }
+
+    .auth-modal {
+        background-color: #202123;
+        border-radius: 16px;
+        padding: 32px;
+        width: 100%;
+        max-width: 420px;
+        margin: 20px;
+        border: 1px solid #4d4d4f;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .auth-header {
+        text-align: center;
+        margin-bottom: 32px;
+    }
+
+    .auth-logo {
+        font-size: 48px;
+        margin-bottom: 16px;
+    }
+
+    .auth-title {
+        font-size: 28px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 8px;
+    }
+
+    .auth-subtitle {
+        color: #9ca3af;
+        font-size: 16px;
+    }
+
+    .auth-tabs {
+        display: flex;
+        margin-bottom: 24px;
+        background-color: #40414f;
+        border-radius: 8px;
+        padding: 4px;
+    }
+
+    .auth-tab {
+        flex: 1;
+        padding: 10px 16px;
+        background: transparent;
+        border: none;
+        color: #ececf1;
+        cursor: pointer;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .auth-tab.active {
+        background-color: #10a37f;
+        color: white;
+    }
+
+    .auth-form {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .form-label {
+        font-size: 14px;
+        font-weight: 500;
+        color: #ececf1;
+    }
+
+    .form-input {
+        padding: 12px 16px;
+        background-color: #40414f;
+        border: 1px solid #565869;
+        border-radius: 8px;
+        color: #ececf1;
+        font-size: 16px;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+
+    .form-input:focus {
+        border-color: #10a37f;
+    }
+
+    .form-input::placeholder {
+        color: #9ca3af;
+    }
+
+    .auth-button {
+        padding: 12px 24px;
+        background-color: #10a37f;
+        border: none;
+        border-radius: 8px;
+        color: white;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        margin-top: 8px;
+    }
+
+    .auth-button:hover {
+        background-color: #0d8266;
+    }
+
+    .auth-button:disabled {
+        background-color: #565869;
+        cursor: not-allowed;
+    }
+
+    .auth-error {
+        background-color: #dc2626;
+        color: white;
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 14px;
+        margin-bottom: 16px;
+        display: none;
+    }
+
+    .auth-success {
+        background-color: #16a34a;
+        color: white;
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 14px;
+        margin-bottom: 16px;
+        display: none;
+    }
+
+    .loading-spinner {
+        border: 2px solid #565869;
+        border-top: 2px solid #10a37f;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .hidden {
+        display: none !important;
+    }
+
     /* Sidebar */
     .sidebar {
         width: 260px;
@@ -284,12 +459,14 @@
         display: flex;
         flex-direction: column;
         position: relative;
+        min-height: 0; /* Importante para que flex funcione correctamente */
     }
 
     .chat-container {
-        height: 500px;         /* altura fija o máxima */
+        flex: 1;         /* altura fija o máxima */
         overflow-y: auto;      /* para que aparezca la barra vertical */
         padding: 20px 0;
+        min-height: 0;         /* Permite que el contenedor se reduzca */
     }
 
     .message {
@@ -594,6 +771,105 @@
   </style>
 </head>
 <body>
+    <!-- Auth Modal -->
+    <div class="auth-overlay" id="authOverlay">
+        <div class="auth-modal">
+            <div class="auth-header">
+                <div class="auth-logo">🏗️</div>
+                <h1 class="auth-title">ArquitectAI</h1>
+                <p class="auth-subtitle">Tu asistente de arquitectura inteligente</p>
+            </div>
+
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="loginTab" onclick="switchTab('login')">
+                    Iniciar Sesión
+                </button>
+                <button class="auth-tab" id="registerTab" onclick="switchTab('register')">
+                    Registrarse
+                </button>
+            </div>
+
+            <div class="auth-error" id="authError"></div>
+            <div class="auth-success" id="authSuccess"></div>
+
+            <!-- Login Form -->
+            <form class="auth-form" id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label class="form-label" for="loginEmail">Email</label>
+                    <input 
+                        type="email" 
+                        id="loginEmail" 
+                        class="form-input" 
+                        placeholder="tu@email.com"
+                        required
+                    >
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="loginPassword">Contraseña</label>
+                    <input 
+                        type="password" 
+                        id="loginPassword" 
+                        class="form-input" 
+                        placeholder="••••••••"
+                        required
+                    >
+                </div>
+                <button type="submit" class="auth-button" id="loginButton">
+                    Iniciar Sesión
+                </button>
+            </form>
+
+            <!-- Register Form -->
+            <form class="auth-form hidden" id="registerForm" onsubmit="handleRegister(event)">
+                <div class="form-group">
+                    <label class="form-label" for="registerName">Nombre</label>
+                    <input 
+                        type="text" 
+                        id="registerName" 
+                        class="form-input" 
+                        placeholder="Tu nombre"
+                        required
+                    >
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="registerEmail">Email</label>
+                    <input 
+                        type="email" 
+                        id="registerEmail" 
+                        class="form-input" 
+                        placeholder="tu@email.com"
+                        required
+                    >
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="registerPassword">Contraseña</label>
+                    <input 
+                        type="password" 
+                        id="registerPassword" 
+                        class="form-input" 
+                        placeholder="••••••••"
+                        required
+                        minlength="6"
+                    >
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="registerPasswordConfirm">Confirmar Contraseña</label>
+                    <input 
+                        type="password" 
+                        id="registerPasswordConfirm" 
+                        class="form-input" 
+                        placeholder="••••••••"
+                        required
+                        minlength="6"
+                    >
+                </div>
+                <button type="submit" class="auth-button" id="registerButton">
+                    Registrarse
+                </button>
+            </form>
+        </div>
+    </div>
+    
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -1114,6 +1390,46 @@ function closeMobileSidebar() {
 function showChatHistory() {
     alert('La función de historial de chat aún no está implementada.');
 }
+
+const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const messageDiv = document.getElementById('message');
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value.trim();
+            const response = await fetch('/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username, password})
+            });
+            const data = await response.json();
+            if (data.success) {
+                messageDiv.textContent = 'Inicio de sesión correcto';
+                // Redirigir a la página principal
+                window.location.href = '/';
+            } else {
+                messageDiv.textContent = data.error || 'Error al iniciar sesión';
+            }
+        });
+
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('register-username').value.trim();
+            const password = document.getElementById('register-password').value.trim();
+            const response = await fetch('/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username, password})
+            });
+            const data = await response.json();
+            if (data.success) {
+                messageDiv.textContent = 'Registro correcto. Ahora inicia sesión.';
+            } else {
+                messageDiv.textContent = data.error || 'Error al registrarse';
+            }
+        });
 
 </script>
 </body>
