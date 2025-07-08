@@ -1,3 +1,4 @@
+import hashlib
 from flask import Flask, request, jsonify, send_from_directory
 import requests
 import os
@@ -11,7 +12,6 @@ import docx
 from pptx import Presentation
 import ezdxf
 import json
-import hashlib 
 
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {
@@ -23,6 +23,19 @@ ALLOWED_EXTENSIONS = {
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+USERS_FILE = os.path.join(UPLOAD_FOLDER, 'users.json')
+# Función auxiliar para cargar usuarios
+def load_users():
+    if not os.path.exists(USERS_FILE) or os.path.getsize(USERS_FILE) == 0:
+        return []
+    with open(USERS_FILE, 'r') as f:
+        return json.load(f)
+# Función auxiliar para guardar usuarios
+def save_users(users):
+    with open(USERS_FILE, 'w') as f:
+        json.dump(users, f, indent=4) # indent=4 para mejor legibilidad del JSON
 
 # --------------------------
 # Funciones auxiliares
@@ -288,31 +301,67 @@ def upload_file():
         except Exception as e:
             print(f"Error eliminando archivo temporal: {e}")
 
+    email = data.get('email')
+    password = data.get('password')
+    if not email or not password: # Solo necesitamos email y password para login
+        return jsonify({"error": "Faltan datos."}), 400
+    if not os.path.exists('users.json'):
+        return jsonify({"error": "No hay usuarios registrados."}), 401 # O un mensaje más genérico
+    with open('users.json', 'r') as f: # Abrir en modo lectura
+        users = json.load(f)
+    # Buscar al usuario por email
+    user_found = None
+    for user in users:
+        if user['email'] == email:
+            user_found = user
+            break
+    if user_found:
+        # Hashear la contraseña proporcionada para compararla con la almacenada
+        provided_password_hashed = hashlib.sha256(password.encode()).hexdigest()
+        
+        # Comparar la contraseña hasheada
+        if user_found['password'] == provided_password_hashed:
+            # Inicio de sesión exitoso
+            return jsonify({"message": "Sesión iniciada.", "user": {"name": user_found['name'], "email": user_found['email']}}), 200
+        else:
+            # Contraseña incorrecta
+            return jsonify({"error": "Credenciales inválidas."}), 401
+    else:
+        # Usuario no encontrado
+        return jsonify({"error": "Credenciales inválidas."}), 40
+
 @app.route('/register', methods=['POST'])
 def register():
     data = request.json
     email = data.get('email')
     password = data.get('password')
+    name = data.get('name')
 
+    # Validación básica de entrada
     if not name or not email or not password:
-        return jsonify({"error": "Faltan datos."}), 400
+        return jsonify({"error": "Todos los campos son obligatorios."}), 400
+    
+    if len(password) < 6: # Ejemplo de validación de longitud mínima
+        return jsonify({"error": "La contraseña debe tener al menos 6 caracteres."}), 400
 
-    # Cargar users.json o crear uno
-    if not os.path.exists('users.json'):
-        with open('users.json', 'w') as f:
-            json.dump([], f)
+    users = load_users()
 
-    with open('users.json') as f:
-        users = json.load(f)
-
+    # Verificar si el correo ya está registrado
     if any(user['email'] == email for user in users):
-        return jsonify({"error": "El correo ya está registrado."}), 400
+        return jsonify({"error": "El correo ya está registrado."}), 409 # 409 Conflict
 
-    users.append({"name": name, "email": email, "password": password})
-    with open('users.json', 'w') as f:
-        json.dump(users, f)
+    # Hashear la contraseña antes de guardarla
+    hashed_password = hashlib.sha256(password.encode('utf-8')).hexdigest()
 
-    return jsonify({"message": "Usuario registrado correctamente."})
+    new_user = {
+        "name": name,
+        "email": email,
+        "password": hashed_password # Guardar la contraseña hasheada
+    }
+    users.append(new_user)
+    save_users(users)
+
+    return jsonify({"message": "Usuario registrado correctamente."}), 201 # 201 Created
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -320,26 +369,41 @@ def login():
     email = data.get('email')
     password = data.get('password')
 
-    if not name or not email or not password:
-        return jsonify({"error": "Faltan datos."}), 400
+    # Validación básica de entrada
+    if not email or not password:
+        return jsonify({"error": "Email y contraseña son obligatorios."}), 400
 
-    # Cargar users.json o crear uno
-    if not os.path.exists('users.json'):
-        with open('users.json', 'w') as f:
-            json.dump([], f)
+    users = load_users()
 
-    with open('users.json') as f:
-        users = json.load(f)
+    # Buscar al usuario por email
+    user_found = None
+    for user in users:
+        if user['email'] == email:
+            user_found = user
+            break
 
-    if any(user['email'] == email for user in users):
-        return jsonify({"error": "El correo ya está registrado."}), 400
+    # Si el usuario no se encuentra o la contraseña no coincide
+    if not user_found:
+        # Mensaje genérico para seguridad: no revelar si el email existe o no
+        return jsonify({"error": "Credenciales inválidas."}), 401
 
-    users.append({"name": name, "email": email, "password": password})
-    with open('users.json', 'w') as f:
-        json.dump(users, f)
+    # Hashear la contraseña proporcionada por el usuario para la comparación
+    provided_password_hashed = hashlib.sha256(password.encode('utf-8')).hexdigest()
 
-    return jsonify({"message": "Sesión iniciada."})
-
+    # Comparar el hash de la contraseña proporcionada con el hash almacenado
+    if user_found['password'] == provided_password_hashed:
+        # Inicio de sesión exitoso
+        # Puedes devolver información del usuario (sin la contraseña)
+        return jsonify({
+            "message": "Sesión iniciada.",
+            "user": {
+                "name": user_found['name'],
+                "email": user_found['email']
+            }
+        }), 200
+    else:
+        # Contraseña incorrecta
+        return jsonify({"error": "Credenciales inválidas."}), 401
 
 
 # --------------------------

@@ -1386,50 +1386,147 @@ function closeMobileSidebar() {
     overlay.classList.remove('visible');
 }
 
-// Placeholder for showChatHistory (if not implemented elsewhere)
-function showChatHistory() {
-    alert('La función de historial de chat aún no está implementada.');
+function switchTab(tab) {
+    const loginTab = document.getElementById('loginTab');
+    const registerTab = document.getElementById('registerTab');
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    const authError = document.getElementById('authError');
+    const authSuccess = document.getElementById('authSuccess');
+
+    // Limpiar mensajes de error/éxito al cambiar de pestaña
+    authError.style.display = 'none';
+    authSuccess.style.display = 'none';
+
+    if (tab === 'login') {
+        loginTab.classList.add('active');
+        registerTab.classList.remove('active');
+        loginForm.classList.remove('hidden');
+        registerForm.classList.add('hidden');
+    } else {
+        loginTab.classList.remove('active');
+        registerTab.classList.add('active');
+        loginForm.classList.add('hidden');
+        registerForm.classList.remove('hidden');
+    }
 }
 
-const loginForm = document.getElementById('login-form');
-        const registerForm = document.getElementById('register-form');
-        const messageDiv = document.getElementById('message');
+// Ejemplo para handleLogin
+function handleLogin(event) {
+    event.preventDefault();
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    const loginButton = document.getElementById('loginButton');
+    const authError = document.getElementById('authError');
+    const authSuccess = document.getElementById('authSuccess');
+    const authOverlay = document.getElementById('authOverlay');
 
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = document.getElementById('login-username').value.trim();
-            const password = document.getElementById('login-password').value.trim();
-            const response = await fetch('/login', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({username, password})
-            });
-            const data = await response.json();
-            if (data.success) {
-                messageDiv.textContent = 'Inicio de sesión correcto';
-                // Redirigir a la página principal
-                window.location.href = '/';
-            } else {
-                messageDiv.textContent = data.error || 'Error al iniciar sesión';
-            }
-        });
+    authError.style.display = 'none';
+    authSuccess.style.display = 'none';
+    loginButton.disabled = true;
+    loginButton.innerHTML = '<div class="loading-spinner"></div>';
 
-        registerForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = document.getElementById('register-username').value.trim();
-            const password = document.getElementById('register-password').value.trim();
-            const response = await fetch('/register', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({username, password})
-            });
-            const data = await response.json();
-            if (data.success) {
-                messageDiv.textContent = 'Registro correcto. Ahora inicia sesión.';
-            } else {
-                messageDiv.textContent = data.error || 'Error al registrarse';
-            }
-        });
+    fetch('/login', { // Asegúrate que la URL sea correcta
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json' // ¡Importante!
+        },
+        body: JSON.stringify({ email, password }) // ¡Importante!
+    })
+    .then(response => response.json().then(data => ({ status: response.status, body: data }))) // Captura el status y el body
+    .then(({ status, body }) => {
+        if (status === 200) {
+            authSuccess.textContent = body.message;
+            authSuccess.style.display = 'block';
+            localStorage.setItem('isLoggedIn', 'true');
+            // Aquí podrías guardar user.name y user.email si los devuelves
+            setTimeout(() => {
+                authOverlay.style.display = 'none';
+            }, 1500);
+        } else {
+            authError.textContent = body.error || 'Error desconocido.';
+            authError.style.display = 'block';
+        }
+    })
+    .catch(error => {
+        console.error('Error de red o del servidor:', error);
+        authError.textContent = 'Error de conexión. Inténtalo de nuevo.';
+        authError.style.display = 'block';
+    })
+    .finally(() => {
+        loginButton.disabled = false;
+        loginButton.innerHTML = 'Iniciar Sesión';
+    });
+}
+
+// Ejemplo para handleRegister (similar)
+function handleRegister(event) {
+    event.preventDefault();
+    const name = document.getElementById('registerName').value;
+    const email = document.getElementById('registerEmail').value;
+    const password = document.getElementById('registerPassword').value;
+    const passwordConfirm = document.getElementById('registerPasswordConfirm').value;
+    const registerButton = document.getElementById('registerButton');
+    const authError = document.getElementById('authError');
+    const authSuccess = document.getElementById('authSuccess');
+
+    authError.style.display = 'none';
+    authSuccess.style.display = 'none';
+
+    if (password !== passwordConfirm) {
+        authError.textContent = 'Las contraseñas no coinciden.';
+        authError.style.display = 'block';
+        return;
+    }
+    if (password.length < 6) { // Validación frontend
+        authError.textContent = 'La contraseña debe tener al menos 6 caracteres.';
+        authError.style.display = 'block';
+        return;
+    }
+
+    registerButton.disabled = true;
+    registerButton.innerHTML = '<div class="loading-spinner"></div>';
+
+    fetch('/register', { // Asegúrate que la URL sea correcta
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name, email, password })
+    })
+    .then(response => response.json().then(data => ({ status: response.status, body: data })))
+    .then(({ status, body }) => {
+        if (status === 201) { // 201 Created
+            authSuccess.textContent = body.message;
+            authSuccess.style.display = 'block';
+            switchTab('login'); // Cambiar a login después de un registro exitoso
+        } else {
+            authError.textContent = body.error || 'Error desconocido.';
+            authError.style.display = 'block';
+        }
+    })
+    .catch(error => {
+        console.error('Error de red o del servidor:', error);
+        authError.textContent = 'Error de conexión. Inténtalo de nuevo.';
+        authError.style.display = 'block';
+    })
+    .finally(() => {
+        registerButton.disabled = false;
+        registerButton.innerHTML = 'Registrarse';
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const authOverlay = document.getElementById('authOverlay');
+    const isLoggedIn = localStorage.getItem('isLoggedIn'); // O tu método de verificación de sesión
+
+    if (isLoggedIn === 'true') {
+        authOverlay.style.display = 'none'; // Ocultar el modal si ya está logueado
+    } else {
+        authOverlay.style.display = 'flex'; // Mostrar el modal si no está logueado
+        switchTab('login'); // Asegurarse de que la pestaña de login esté activa por defecto
+    }
+});
 
 </script>
 </body>
