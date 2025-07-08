@@ -782,7 +782,7 @@
     <div class="auth-overlay" id="authOverlay">
         <div class="auth-modal">
             <div class="auth-header">
-                <div class="auth-logo">🏗️</div>
+                <div class="auth-logo"><img src="/static/logo3.png" alt="Logo" style="width: 50px; height: auto;"/></div>
                 <h1 class="auth-title">ArquitectAI</h1>
                 <p class="auth-subtitle">Tu asistente de arquitectura inteligente</p>
             </div>
@@ -894,7 +894,9 @@
             <div class="user-info">
                 <img src="/static/logo3.png" alt="Logo" style="width: 35px; height: auto;"/>
                 <div class="user-details">
-                    <div class="user-name">"Usuario"</div>
+                    <div class="user-name">
+                      {{ session.username }}
+                    </div>
                     <div class="user-email">ArquitectAI🧱</div>
                 </div>
             </div>

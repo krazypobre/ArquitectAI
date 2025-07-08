@@ -12,4 +12,4 @@ psd-tools
 pikepdf
 pdf2image
 requests
-
+Flask-Mail

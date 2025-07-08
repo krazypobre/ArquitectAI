@@ -1,5 +1,6 @@
 import hashlib
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, render_template, redirect
+from flask_mail import Mail, Message 
 import requests
 import os
 from werkzeug.utils import secure_filename
@@ -12,6 +13,7 @@ import docx
 from pptx import Presentation
 import ezdxf
 import json
+from flask import Flask, session
 
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {
@@ -21,6 +23,17 @@ ALLOWED_EXTENSIONS = {
 }
 
 app = Flask(__name__)
+app.secret_key = 'una_clave_super_secreta'
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True  # ✅ Aquí se activa TLS
+app.config['MAIL_USE_SSL'] = False  # Solo uno de los dos debe ser True
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'tucorreo@gmail.com'          # Tu correo
+app.config['MAIL_PASSWORD'] = 'tu_contraseña_de_aplicacion'  # Contraseña de aplicación Gmail
+app.config['MAIL_DEFAULT_SENDER'] = ('Tu App', 'tucorreo@gmail.com')
+
+mail = Mail(app)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 if not os.path.exists(UPLOAD_FOLDER):
@@ -179,7 +192,7 @@ def extract_text_from_file(filepath, ext):
 
 @app.route("/")
 def home():
-    return send_from_directory('.', 'index.html')
+    return render_template('index.html')
 
 @app.route('/preguntar', methods=['POST'])
 def preguntar():
@@ -330,7 +343,7 @@ def upload_file():
         # Usuario no encontrado
         return jsonify({"error": "Credenciales inválidas."}), 40
 
-@app.route('/register', methods=['POST'])
+@app.route('/register', methods=['GET', 'POST'])
 def register():
     data = request.json
     email = data.get('email')
@@ -341,70 +354,127 @@ def register():
     if not name or not email or not password:
         return jsonify({"error": "Todos los campos son obligatorios."}), 400
     
-    if len(password) < 6: # Ejemplo de validación de longitud mínima
+    if len(password) < 6:
         return jsonify({"error": "La contraseña debe tener al menos 6 caracteres."}), 400
 
     users = load_users()
 
-    # Verificar si el correo ya está registrado
     if any(user['email'] == email for user in users):
-        return jsonify({"error": "El correo ya está registrado."}), 409 # 409 Conflict
+        return jsonify({"error": "El correo ya está registrado."}), 409
 
-    # Hashear la contraseña antes de guardarla
     hashed_password = hashlib.sha256(password.encode('utf-8')).hexdigest()
 
     new_user = {
         "name": name,
         "email": email,
-        "password": hashed_password # Guardar la contraseña hasheada
+        "password": hashed_password
     }
     users.append(new_user)
     save_users(users)
 
-    return jsonify({"message": "Usuario registrado correctamente."}), 201 # 201 Created
+    session['username'] = name  # 👈 IMPORTANTE
 
-@app.route('/login', methods=['POST'])
+    # Enviar correo de bienvenida
+    msg = Message(
+        "Bienvenido a Nuestra Página",
+        recipients=[email]
+    )
+    msg.body = f"Hola {name}, gracias por registrarte!"
+    msg.html = f"<h1>Hola {name}</h1><p>Gracias por registrarte en nuestra página! ¿Estás preparad@ para comenzar a aprender con nuestra IA?</p>"
+
+    try:
+        mail.send(msg)
+    except Exception as e:
+        print(f"Error enviando correo: {e}")
+
+    # ✅ Siempre retorna algo
+    return jsonify({"message": "Usuario registrado correctamente."}), 201
+    return render_template('index.html', mensaje=mensaje)
+
+@app.route('/logout')
+def logout():
+    session.pop('username', None)
+    return redirect('/')
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    data = request.json
-    email = data.get('email')
-    password = data.get('password')
+    if request.method == 'POST':
+        # Si viene de un formulario HTML tradicional:
+        if request.form:
+            username = request.form.get('username')
+            password = request.form.get('password')
+        else:
+            # Si viene como JSON (fetch, axios)
+            data = request.get_json()
+            username = data.get('email')  # O 'username' según tu frontend
+            password = data.get('password')
 
-    # Validación básica de entrada
-    if not email or not password:
-        return jsonify({"error": "Email y contraseña son obligatorios."}), 400
+        if not username or not password:
+            return jsonify({"error": "Usuario/Email y contraseña son obligatorios."}), 400
 
-    users = load_users()
+        users = load_users()
 
-    # Buscar al usuario por email
-    user_found = None
-    for user in users:
-        if user['email'] == email:
-            user_found = user
-            break
+        # Buscar usuario por nombre o email
+        user_found = None
+        for user in users:
+            if user['email'] == username or user['name'] == username:
+                user_found = user
+                break
 
-    # Si el usuario no se encuentra o la contraseña no coincide
-    if not user_found:
-        # Mensaje genérico para seguridad: no revelar si el email existe o no
-        return jsonify({"error": "Credenciales inválidas."}), 401
+        if not user_found:
+            return jsonify({"error": "Credenciales inválidas."}), 401
 
-    # Hashear la contraseña proporcionada por el usuario para la comparación
-    provided_password_hashed = hashlib.sha256(password.encode('utf-8')).hexdigest()
+        provided_password_hashed = hashlib.sha256(password.encode('utf-8')).hexdigest()
 
-    # Comparar el hash de la contraseña proporcionada con el hash almacenado
-    if user_found['password'] == provided_password_hashed:
-        # Inicio de sesión exitoso
-        # Puedes devolver información del usuario (sin la contraseña)
-        return jsonify({
-            "message": "Sesión iniciada.",
-            "user": {
-                "name": user_found['name'],
-                "email": user_found['email']
-            }
-        }), 200
-    else:
-        # Contraseña incorrecta
-        return jsonify({"error": "Credenciales inválidas."}), 401
+        if user_found['password'] == provided_password_hashed:
+            # ✅ Aquí se guarda el nombre en la sesión
+            session['username'] = user_found['name']
 
+            if request.form:
+                # Si fue formulario normal, redirige a home
+                return redirect('/')
+            else:
+                # Si fue API JSON, responde con JSON
+                return jsonify({
+                    "message": "Sesión iniciada.",
+                    "user": {
+                        "name": user_found['name'],
+                        "email": user_found['email']
+                    }
+                }), 200
+        else:
+            return jsonify({"error": "Credenciales inválidas."}), 401
+
+    # Si es GET, devuelve formulario o error si no tienes uno
+    return "Método no permitido", 405
+
+@app.route('/registro', methods=['GET', 'POST'])
+def registro():
+    mensaje = None
+
+    if request.method == 'POST':
+        nombre = request.form['nombre']
+        email = request.form['email']
+        password = request.form['password']
+
+        # Aquí guardas el usuario en tu BD
+
+        # Enviar correo de bienvenida
+        msg = Message("Bienvenido a Nuestra Página", recipients=[email])
+        msg.body = f"Hola {nombre}, gracias por registrarte!"
+        msg.html = f"<h1>Hola {nombre}</h1><p>Gracias por registrarte en nuestra página! ¿Estás prepatad@ para comenzar a aprender con nuestra IA?</p>"
+
+        try:
+            mail.send(msg)
+            mensaje = "Registro exitoso, correo enviado!"
+        except Exception as e:
+            mensaje = f"Registro exitoso, pero hubo un error enviando el correo: {e}"
+
+    return render_template('index.html', mensaje=mensaje)
 
 # --------------------------
 # Ejecutar
