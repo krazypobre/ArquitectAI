@@ -1527,6 +1527,23 @@ function handleRegister(event) {
     });
 }
 
+function hacerPregunta() {
+  const pregunta = document.getElementById('preguntaInput').value;
+
+  fetch('/preguntar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      pregunta: pregunta,
+      usar_serper: true  // 👈 Esto activa la búsqueda online
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    console.log("Respuesta:", data.respuesta);
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const authOverlay = document.getElementById('authOverlay');
     const isLoggedIn = localStorage.getItem('isLoggedIn'); // O tu método de verificación de sesión

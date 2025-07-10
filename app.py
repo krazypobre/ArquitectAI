@@ -26,29 +26,28 @@ app = Flask(__name__)
 app.secret_key = 'una_clave_super_secreta'
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True  # ✅ Aquí se activa TLS
-app.config['MAIL_USE_SSL'] = False  # Solo uno de los dos debe ser True
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'tucorreo@gmail.com'          # Tu correo
-app.config['MAIL_PASSWORD'] = 'tu_contraseña_de_aplicacion'  # Contraseña de aplicación Gmail
+app.config['MAIL_USE_SSL'] = False
+app.config['MAIL_USERNAME'] = 'tucorreo@gmail.com'
+app.config['MAIL_PASSWORD'] = 'tu_contraseña_de_aplicacion'
 app.config['MAIL_DEFAULT_SENDER'] = ('Tu App', 'tucorreo@gmail.com')
 
 mail = Mail(app)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
 USERS_FILE = os.path.join(UPLOAD_FOLDER, 'users.json')
+
 # Función auxiliar para cargar usuarios
 def load_users():
     if not os.path.exists(USERS_FILE) or os.path.getsize(USERS_FILE) == 0:
         return []
     with open(USERS_FILE, 'r') as f:
         return json.load(f)
+
 # Función auxiliar para guardar usuarios
 def save_users(users):
     with open(USERS_FILE, 'w') as f:
-        json.dump(users, f, indent=4) # indent=4 para mejor legibilidad del JSON
+        json.dump(users, f, indent=4)
 
 # --------------------------
 # Funciones auxiliares
@@ -58,39 +57,54 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def buscar_serper(query, api_key):
+    """
+    Busca en Google usando Serper API
+    """
     url = "https://google.serper.dev/search"
     headers = {
-        "X-API-KEY": '3afe5888cc608256a0ae579173d4fb0c7186a9d0',
+        "X-API-KEY": api_key,
         "Content-Type": "application/json"
     }
     body = {"q": query}
-    response = requests.post(url, headers=headers, json=body)
-    print("Serper respuesta:", response.status_code, response.text)
     
-    if response.status_code != 200:
-        return None, f"Error HTTP: {response.status_code} - {response.text}"
-    
-    data = response.json()
-    resultados = []
-    organic = data.get("organic", [])
-    
-    if not organic:
-        return None, "No se encontraron resultados en Serper."
-    
-    for r in organic:
-        title = r.get("title", "")
-        snippet = r.get("snippet", "")
-        link = r.get("link", "")
-        resultados.append(f"Título: {title}\nResumen: {snippet}\nEnlace: {link}")
-    
-    return "\n\n".join(resultados), None
+    try:
+        response = requests.post(url, headers=headers, json=body, timeout=10)
+        print(f"🔍 Serper API - Status: {response.status_code}")
+        print(f"🔍 Serper API - Response: {response.text[:200]}...")
+        
+        if response.status_code != 200:
+            return None, f"Error HTTP: {response.status_code} - {response.text}"
+        
+        data = response.json()
+        resultados = []
+        organic = data.get("organic", [])
+        
+        if not organic:
+            return None, "No se encontraron resultados en Serper."
+        
+        for r in organic[:5]:  # Limitar a 5 resultados
+            title = r.get("title", "")
+            snippet = r.get("snippet", "")
+            link = r.get("link", "")
+            resultados.append(f"Título: {title}\nResumen: {snippet}\nEnlace: {link}")
+        
+        return "\n\n".join(resultados), None
+        
+    except Exception as e:
+        print(f"❌ Error en Serper: {e}")
+        return None, f"Error conectando con Serper: {e}"
 
 def llamar_a_ollama(prompt):
+    """
+    Llama al modelo Ollama local
+    """
     url = "http://127.0.0.1:11434/v1/chat/completions"
     system_message = {
         "role": "system",
-        "content": "Responde exactamente lo que te pida el usuario, si es necesario búscalo en Google. "
-                   "Si la información proporcionada no contiene respuesta, di: 'No encontré respuesta en la búsqueda.'"
+        "content": "Eres un experto arquitecto y diseñador, pero también sabes sobre todos los temas del mundo. "
+                   "Ayuda con preguntas técnicas y creativas. Habla como una persona normal, "
+                   "responde en el idioma en que se te habla y no hagas saludos largos. "
+                   "Si tienes información de búsqueda, úsala para dar respuestas actualizadas."
     }
     user_message = {
         "role": "user",
@@ -100,6 +114,7 @@ def llamar_a_ollama(prompt):
         "model": "llama3",
         "messages": [system_message, user_message]
     }
+    
     try:
         response = requests.post(url, json=payload, timeout=30)
         if response.status_code == 200:
@@ -187,7 +202,7 @@ def extract_text_from_file(filepath, ext):
     return file_text
 
 # --------------------------
-# Rutas
+# Rutas principales
 # --------------------------
 
 @app.route('/')
@@ -196,28 +211,88 @@ def home():
 
 @app.route('/preguntar', methods=['POST'])
 def preguntar():
+    """
+    Ruta principal para preguntas con búsqueda automática en Serper
+    """
     data = request.json
     pregunta = data.get('pregunta')
+    usar_serper = data.get('usar_serper', True)  # 🔥 POR DEFECTO BUSCA EN SERPER
+    
     if not pregunta:
         return jsonify({"error": "No se recibió pregunta"}), 400
 
     api_key = "3afe5888cc608256a0ae579173d4fb0c7186a9d0"
-    resultados, error = buscar_serper(pregunta, api_key)
+    print(f"🔍 Pregunta: {pregunta}")
+    print(f"🔍 Usar Serper: {usar_serper}")
 
-    if resultados:
-        prompt = f"Información de búsqueda:\n{resultados}\n\nPregunta del usuario: {pregunta}\nResponde usando SOLO esta información. Si no está, di: 'No encontré respuesta en la búsqueda.'"
+    # 🔥 SIEMPRE BUSCA EN SERPER (salvo que explícitamente se diga que no)
+    if usar_serper:
+        print("🔍 Buscando en Serper...")
+        resultados, error = buscar_serper(pregunta, api_key)
+        
+        if resultados:
+            print("✅ Resultados encontrados en Serper")
+            prompt = f"""Información actualizada de Internet:
+{resultados}
+
+Pregunta del usuario: {pregunta}
+
+Responde usando esta información actualizada. Si la información no es suficiente, 
+combínala con tu conocimiento pero prioriza la información de Internet."""
+        else:
+            print(f"❌ No se encontraron resultados en Serper: {error}")
+            prompt = f"""No se pudo obtener información actualizada de Internet.
+Pregunta: {pregunta}
+Responde con tu conocimiento, pero menciona que no tienes información actualizada."""
     else:
-        prompt = f"No hubo resultados de búsqueda. Responde con lo que sepas o di: 'No encontré respuesta en la búsqueda.' Pregunta: {pregunta}"
+        print("🔍 Saltando búsqueda en Serper por solicitud del usuario")
+        prompt = pregunta
 
+    # Llamar a Ollama
     response_ollama = llamar_a_ollama(prompt)
-
-    return jsonify({"respuesta": response_ollama})
+    
+    return jsonify({
+        "respuesta": response_ollama,
+        "busqueda_realizada": usar_serper,
+        "serper_usado": usar_serper and resultados is not None
+    })
 
 @app.route('/api/generar-texto', methods=['POST'])
 def generar_texto():
-    prompt = request.form.get('prompt', '').strip()
-    file = request.files.get('file')
+    """
+    Ruta para generar texto con archivos y búsqueda opcional
+    """
+    # Manejar tanto JSON como form-data
+    if request.is_json:
+        data = request.get_json()
+        prompt = data.get('prompt', '').strip()
+        usar_serper = data.get('usar_serper', True)  # 🔥 POR DEFECTO BUSCA EN SERPER
+    else:
+        prompt = request.form.get('prompt', '').strip()
+        usar_serper = request.form.get('usar_serper', 'true').lower() == 'true'
 
+    if not prompt:
+        return jsonify({"error": "No se recibió prompt"}), 400
+
+    file = request.files.get('file')
+    api_key = "3afe5888cc608256a0ae579173d4fb0c7186a9d0"
+    
+    print(f"🔍 Prompt: {prompt}")
+    print(f"🔍 Usar Serper: {usar_serper}")
+    print(f"🔍 Archivo: {file.filename if file else 'No'}")
+
+    # 🔥 BUSCAR EN SERPER PRIMERO
+    search_info = ""
+    if usar_serper:
+        print("🔍 Buscando en Serper...")
+        resultados, error = buscar_serper(prompt, api_key)
+        if resultados:
+            print("✅ Resultados encontrados en Serper")
+            search_info = f"Información actualizada de Internet:\n{resultados}\n\n"
+        else:
+            print(f"❌ Error en Serper: {error}")
+
+    # Procesar archivo si existe
     file_text = ""
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
@@ -232,13 +307,16 @@ def generar_texto():
         except Exception as e:
             print(f"Error eliminando archivo temporal: {e}")
 
-    combined_prompt = f"{file_text}\n\nUsuario pregunta: {prompt}" if file_text else prompt
+    # Combinar toda la información
+    combined_prompt = f"{search_info}{file_text}\n\nUsuario pregunta: {prompt}" if (search_info or file_text) else prompt
 
+    # Llamar a Ollama
     system_message = {
         "role": "system",
         "content": "Eres un experto arquitecto y diseñador, pero también sabes sobre todos los temas del mundo. "
                    "Ayuda con preguntas técnicas y creativas sobre arquitectura y otros temas. "
-                   "Habla como una persona normal, responde en el idioma en que se te habla y no hagas saludos largos."
+                   "Habla como una persona normal, responde en el idioma en que se te habla y no hagas saludos largos. "
+                   "Si tienes información actualizada de Internet, úsala para dar respuestas precisas."
     }
     user_message = {
         "role": "user",
@@ -264,7 +342,15 @@ def generar_texto():
         print(f"Error llamando al modelo: {e}")
         respuesta = "Error al generar respuesta del modelo"
 
-    return jsonify({'respuesta': respuesta})
+    return jsonify({
+        'respuesta': respuesta,
+        'busqueda_realizada': usar_serper,
+        'archivo_procesado': bool(file_text)
+    })
+
+# --------------------------
+# Rutas de archivos
+# --------------------------
 
 @app.route("/upload", methods=["POST"])
 def upload_file():
@@ -314,43 +400,17 @@ def upload_file():
         except Exception as e:
             print(f"Error eliminando archivo temporal: {e}")
 
-    email = data.get('email')
-    password = data.get('password')
-    if not email or not password: # Solo necesitamos email y password para login
-        return jsonify({"error": "Faltan datos."}), 400
-    if not os.path.exists('users.json'):
-        return jsonify({"error": "No hay usuarios registrados."}), 401 # O un mensaje más genérico
-    with open('users.json', 'r') as f: # Abrir en modo lectura
-        users = json.load(f)
-    # Buscar al usuario por email
-    user_found = None
-    for user in users:
-        if user['email'] == email:
-            user_found = user
-            break
-    if user_found:
-        # Hashear la contraseña proporcionada para compararla con la almacenada
-        provided_password_hashed = hashlib.sha256(password.encode()).hexdigest()
-        
-        # Comparar la contraseña hasheada
-        if user_found['password'] == provided_password_hashed:
-            # Inicio de sesión exitoso
-            return jsonify({"message": "Sesión iniciada.", "user": {"name": user_found['name'], "email": user_found['email']}}), 200
-        else:
-            # Contraseña incorrecta
-            return jsonify({"error": "Credenciales inválidas."}), 401
-    else:
-        # Usuario no encontrado
-        return jsonify({"error": "Credenciales inválidas."}), 40
+# --------------------------
+# Rutas de autenticación
+# --------------------------
 
-@app.route('/register', methods=['GET', 'POST'])
+@app.route('/register', methods=['POST'])
 def register():
     data = request.json
     email = data.get('email')
     password = data.get('password')
     name = data.get('name')
 
-    # Validación básica de entrada
     if not name or not email or not password:
         return jsonify({"error": "Todos los campos son obligatorios."}), 400
     
@@ -372,7 +432,7 @@ def register():
     users.append(new_user)
     save_users(users)
 
-    session['username'] = name  # 👈 IMPORTANTE
+    session['username'] = name
 
     # Enviar correo de bienvenida
     msg = Message(
@@ -387,94 +447,54 @@ def register():
     except Exception as e:
         print(f"Error enviando correo: {e}")
 
-    # ✅ Siempre retorna algo
     return jsonify({"message": "Usuario registrado correctamente."}), 201
-    return render_template('index.html', mensaje=mensaje)
+
+@app.route('/login', methods=['POST'])
+def login():
+    if request.form:
+        username = request.form.get('username')
+        password = request.form.get('password')
+    else:
+        data = request.get_json()
+        username = data.get('email')
+        password = data.get('password')
+
+    if not username or not password:
+        return jsonify({"error": "Usuario/Email y contraseña son obligatorios."}), 400
+
+    users = load_users()
+
+    user_found = None
+    for user in users:
+        if user['email'] == username or user['name'] == username:
+            user_found = user
+            break
+
+    if not user_found:
+        return jsonify({"error": "Credenciales inválidas."}), 401
+
+    provided_password_hashed = hashlib.sha256(password.encode('utf-8')).hexdigest()
+
+    if user_found['password'] == provided_password_hashed:
+        session['username'] = user_found['name']
+
+        if request.form:
+            return redirect('/')
+        else:
+            return jsonify({
+                "message": "Sesión iniciada.",
+                "user": {
+                    "name": user_found['name'],
+                    "email": user_found['email']
+                }
+            }), 200
+    else:
+        return jsonify({"error": "Credenciales inválidas."}), 401
 
 @app.route('/logout')
 def logout():
     session.pop('username', None)
     return redirect('/')
-
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        # Si viene de un formulario HTML tradicional:
-        if request.form:
-            username = request.form.get('username')
-            password = request.form.get('password')
-        else:
-            # Si viene como JSON (fetch, axios)
-            data = request.get_json()
-            username = data.get('email')  # O 'username' según tu frontend
-            password = data.get('password')
-
-        if not username or not password:
-            return jsonify({"error": "Usuario/Email y contraseña son obligatorios."}), 400
-
-        users = load_users()
-
-        # Buscar usuario por nombre o email
-        user_found = None
-        for user in users:
-            if user['email'] == username or user['name'] == username:
-                user_found = user
-                break
-
-        if not user_found:
-            return jsonify({"error": "Credenciales inválidas."}), 401
-
-        provided_password_hashed = hashlib.sha256(password.encode('utf-8')).hexdigest()
-
-        if user_found['password'] == provided_password_hashed:
-            # ✅ Aquí se guarda el nombre en la sesión
-            session['username'] = user_found['name']
-
-            if request.form:
-                # Si fue formulario normal, redirige a home
-                return redirect('/')
-            else:
-                # Si fue API JSON, responde con JSON
-                return jsonify({
-                    "message": "Sesión iniciada.",
-                    "user": {
-                        "name": user_found['name'],
-                        "email": user_found['email']
-                    }
-                }), 200
-        else:
-            return jsonify({"error": "Credenciales inválidas."}), 401
-
-    # Si es GET, devuelve formulario o error si no tienes uno
-    return "Método no permitido", 405
-
-@app.route('/registro', methods=['GET', 'POST'])
-def registro():
-    mensaje = None
-
-    if request.method == 'POST':
-        nombre = request.form['nombre']
-        email = request.form['email']
-        password = request.form['password']
-
-        # Aquí guardas el usuario en tu BD
-
-        # Enviar correo de bienvenida
-        msg = Message("Bienvenido a Nuestra Página", recipients=[email])
-        msg.body = f"Hola {nombre}, gracias por registrarte!"
-        msg.html = f"<h1>Hola {nombre}</h1><p>Gracias por registrarte en nuestra página! ¿Estás prepatad@ para comenzar a aprender con nuestra IA?</p>"
-
-        try:
-            mail.send(msg)
-            mensaje = "Registro exitoso, correo enviado!"
-        except Exception as e:
-            mensaje = f"Registro exitoso, pero hubo un error enviando el correo: {e}"
-
-    return render_template('index.html', mensaje=mensaje)
 
 # --------------------------
 # Ejecutar
