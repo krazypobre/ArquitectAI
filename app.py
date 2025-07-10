@@ -5,21 +5,58 @@ import requests
 import os
 from werkzeug.utils import secure_filename
 from PyPDF2 import PdfReader
-from psd_tools import PSDImage
-from pdf2image import convert_from_path
-from PIL import Image
-import pytesseract
-import docx
-from pptx import Presentation
-import ezdxf
 import json
-from flask import Flask, session
+from flask import session
+
+# Importaciones opcionales para archivos especiales
+try:
+    from psd_tools import PSDImage
+    HAS_PSD = True
+except ImportError:
+    HAS_PSD = False
+    print("⚠️  psd_tools no disponible. Archivos PSD no se procesarán.")
+
+try:
+    from pdf2image import convert_from_path
+    HAS_PDF2IMAGE = True
+except ImportError:
+    HAS_PDF2IMAGE = False
+    print("⚠️  pdf2image no disponible. Archivos AI no se procesarán.")
+
+try:
+    from PIL import Image
+    import pytesseract
+    HAS_OCR = True
+except ImportError:
+    HAS_OCR = False
+    print("⚠️  PIL/pytesseract no disponible. OCR no funcionará.")
+
+try:
+    import docx
+    HAS_DOCX = True
+except ImportError:
+    HAS_DOCX = False
+    print("⚠️  python-docx no disponible. Archivos DOCX no se procesarán.")
+
+try:
+    from pptx import Presentation
+    HAS_PPTX = True
+except ImportError:
+    HAS_PPTX = False
+    print("⚠️  python-pptx no disponible. Archivos PPTX no se procesarán.")
+
+try:
+    import ezdxf
+    HAS_EZDXF = True
+except ImportError:
+    HAS_EZDXF = False
+    print("⚠️  ezdxf no disponible. Archivos DWG/DXF no se procesarán.")
 
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {
     'pdf', 'dwg', 'dxf', 'png', 'jpg', 'jpeg', 'bmp',
     'svg', 'tiff', 'webp', 'heic', 'gif', 'docx', 'pptx',
-    'ai', 'psd', 'indd'
+    'ai', 'psd', 'indd', 'txt'
 }
 
 app = Flask(__name__)
@@ -34,32 +71,30 @@ app.config['MAIL_DEFAULT_SENDER'] = ('Tu App', 'tucorreo@gmail.com')
 
 mail = Mail(app)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+
+# Crear directorio de uploads
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 USERS_FILE = os.path.join(UPLOAD_FOLDER, 'users.json')
 
-# Función auxiliar para cargar usuarios
 def load_users():
     if not os.path.exists(USERS_FILE) or os.path.getsize(USERS_FILE) == 0:
         return []
-    with open(USERS_FILE, 'r') as f:
-        return json.load(f)
+    try:
+        with open(USERS_FILE, 'r') as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        return []
 
-# Función auxiliar para guardar usuarios
 def save_users(users):
     with open(USERS_FILE, 'w') as f:
         json.dump(users, f, indent=4)
-
-# --------------------------
-# Funciones auxiliares
-# --------------------------
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def buscar_serper(query, api_key):
-    """
-    Busca en Google usando Serper API
-    """
+    """Busca en Google usando Serper API"""
     url = "https://google.serper.dev/search"
     headers = {
         "X-API-KEY": api_key,
@@ -70,19 +105,18 @@ def buscar_serper(query, api_key):
     try:
         response = requests.post(url, headers=headers, json=body, timeout=10)
         print(f"🔍 Serper API - Status: {response.status_code}")
-        print(f"🔍 Serper API - Response: {response.text[:200]}...")
         
         if response.status_code != 200:
-            return None, f"Error HTTP: {response.status_code} - {response.text}"
+            return None, f"Error HTTP: {response.status_code}"
         
         data = response.json()
         resultados = []
         organic = data.get("organic", [])
         
         if not organic:
-            return None, "No se encontraron resultados en Serper."
+            return None, "No se encontraron resultados."
         
-        for r in organic[:5]:  # Limitar a 5 resultados
+        for r in organic[:5]:
             title = r.get("title", "")
             snippet = r.get("snippet", "")
             link = r.get("link", "")
@@ -95,16 +129,13 @@ def buscar_serper(query, api_key):
         return None, f"Error conectando con Serper: {e}"
 
 def llamar_a_ollama(prompt):
-    """
-    Llama al modelo Ollama local
-    """
+    """Llama al modelo Ollama local"""
     url = "http://127.0.0.1:11434/v1/chat/completions"
     system_message = {
         "role": "system",
         "content": "Eres un experto arquitecto y diseñador, pero también sabes sobre todos los temas del mundo. "
                    "Ayuda con preguntas técnicas y creativas. Habla como una persona normal, "
-                   "responde en el idioma en que se te habla y no hagas saludos largos. "
-                   "Si tienes información de búsqueda, úsala para dar respuestas actualizadas."
+                   "responde en el idioma en que se te habla y no hagas saludos largos."
     }
     user_message = {
         "role": "user",
@@ -124,81 +155,163 @@ def llamar_a_ollama(prompt):
     except Exception as e:
         return f"Error llamando al modelo: {e}"
 
-def extract_text_from_file(filepath, ext):
+def extract_text_from_file(filepath, filename):
+    """
+    Extrae texto de diferentes tipos de archivos
+    """
+    ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
     file_text = ""
+    
+    print(f"📄 Procesando archivo: {filename} (tipo: {ext})")
+    
     try:
-        if ext == 'pdf':
+        if ext == 'txt':
+            with open(filepath, 'r', encoding='utf-8') as f:
+                file_text = f.read()
+        
+        elif ext == 'pdf':
+            if not os.path.exists(filepath):
+                return "[Error: Archivo PDF no encontrado]"
+            
             reader = PdfReader(filepath)
-            for page in reader.pages[:3]:
-                page_text = page.extract_text()
-                if page_text:
-                    file_text += page_text + "\n"
+            print(f"📄 PDF tiene {len(reader.pages)} páginas")
+            
+            for i, page in enumerate(reader.pages[:5]):  # Límite a 5 páginas
+                try:
+                    page_text = page.extract_text()
+                    if page_text:
+                        file_text += f"--- Página {i+1} ---\n{page_text}\n\n"
+                except Exception as e:
+                    print(f"Error en página {i+1}: {e}")
+                    file_text += f"[Error leyendo página {i+1}]\n"
 
-        elif ext in ('png', 'jpg', 'jpeg', 'bmp', 'gif', 'tiff', 'webp', 'heic'):
-            img = Image.open(filepath)
-            text = pytesseract.image_to_string(img, lang='spa')
-            file_text += text
+        elif ext in ('png', 'jpg', 'jpeg', 'bmp', 'gif', 'tiff', 'webp'):
+            if not HAS_OCR:
+                return "[OCR no disponible. Instala PIL y pytesseract]"
+            
+            try:
+                img = Image.open(filepath)
+                text = pytesseract.image_to_string(img, lang='spa+eng')
+                file_text = text if text.strip() else "[No se detectó texto en la imagen]"
+            except Exception as e:
+                file_text = f"[Error procesando imagen: {e}]"
 
         elif ext == 'docx':
-            doc = docx.Document(filepath)
-            for para in doc.paragraphs:
-                file_text += para.text + "\n"
+            if not HAS_DOCX:
+                return "[python-docx no disponible]"
+            
+            try:
+                doc = docx.Document(filepath)
+                paragraphs = []
+                for para in doc.paragraphs:
+                    if para.text.strip():
+                        paragraphs.append(para.text)
+                file_text = "\n".join(paragraphs)
+            except Exception as e:
+                file_text = f"[Error procesando DOCX: {e}]"
 
         elif ext == 'pptx':
-            ppt = Presentation(filepath)
-            for slide in ppt.slides:
-                for shape in slide.shapes:
-                    if hasattr(shape, "text"):
-                        file_text += shape.text + "\n"
+            if not HAS_PPTX:
+                return "[python-pptx no disponible]"
+            
+            try:
+                ppt = Presentation(filepath)
+                slides_text = []
+                for i, slide in enumerate(ppt.slides):
+                    slide_text = f"--- Diapositiva {i+1} ---\n"
+                    for shape in slide.shapes:
+                        if hasattr(shape, "text") and shape.text.strip():
+                            slide_text += shape.text + "\n"
+                    slides_text.append(slide_text)
+                file_text = "\n".join(slides_text)
+            except Exception as e:
+                file_text = f"[Error procesando PPTX: {e}]"
 
         elif ext in ('dwg', 'dxf'):
-            doc = ezdxf.readfile(filepath)
-            msp = doc.modelspace()
-            for entity in msp:
-                tipo = entity.dxftype()
-                if tipo == "LINE":
-                    start = entity.dxf.start
-                    end = entity.dxf.end
-                    length = ((end[0] - start[0]) ** 2 + (end[1] - start[1]) ** 2) ** 0.5
-                    file_text += f"Línea de {start} a {end} con longitud aproximada de {round(length, 2)} unidades.\n"
-                elif tipo == "TEXT":
-                    file_text += f"Texto: {entity.dxf.text}\n"
-                elif tipo == "MTEXT":
-                    file_text += f"Texto: {entity.text}\n"
+            if not HAS_EZDXF:
+                return "[ezdxf no disponible]"
+            
+            try:
+                doc = ezdxf.readfile(filepath)
+                msp = doc.modelspace()
+                elements = []
+                
+                for entity in msp:
+                    tipo = entity.dxftype()
+                    if tipo == "LINE":
+                        start = entity.dxf.start
+                        end = entity.dxf.end
+                        length = ((end[0] - start[0]) ** 2 + (end[1] - start[1]) ** 2) ** 0.5
+                        elements.append(f"Línea de {start} a {end}, longitud: {round(length, 2)}")
+                    elif tipo == "TEXT":
+                        elements.append(f"Texto: {entity.dxf.text}")
+                    elif tipo == "MTEXT":
+                        elements.append(f"Texto: {entity.text}")
+                    elif tipo == "CIRCLE":
+                        elements.append(f"Círculo en {entity.dxf.center}, radio: {entity.dxf.radius}")
+                
+                file_text = "\n".join(elements) if elements else "[Archivo CAD sin elementos de texto]"
+            except Exception as e:
+                file_text = f"[Error procesando archivo CAD: {e}]"
 
         elif ext == 'psd':
-            psd = PSDImage.open(filepath)
-            img = psd.composite()
-            text = pytesseract.image_to_string(img, lang='spa')
-            file_text += text
+            if not HAS_PSD:
+                return "[psd_tools no disponible]"
+            
+            try:
+                psd = PSDImage.open(filepath)
+                img = psd.composite()
+                if HAS_OCR:
+                    text = pytesseract.image_to_string(img, lang='spa+eng')
+                    file_text = text if text.strip() else "[No se detectó texto en el PSD]"
+                else:
+                    file_text = "[PSD procesado pero OCR no disponible]"
+            except Exception as e:
+                file_text = f"[Error procesando PSD: {e}]"
 
         elif ext == 'ai':
+            if not HAS_PDF2IMAGE:
+                return "[pdf2image no disponible para archivos AI]"
+            
             try:
                 images = convert_from_path(filepath)
-                for img in images:
-                    text = pytesseract.image_to_string(img, lang='spa')
-                    file_text += text + "\n"
-            except Exception as ai_error:
-                file_text += f"[Error procesando archivo AI: {ai_error}]"
-
-        elif ext == 'indd':
-            file_text += "[Archivo InDesign detectado. Por favor, exporta el archivo a PDF para procesarlo.]"
+                if HAS_OCR:
+                    ai_text = []
+                    for i, img in enumerate(images):
+                        text = pytesseract.image_to_string(img, lang='spa+eng')
+                        if text.strip():
+                            ai_text.append(f"--- Página {i+1} ---\n{text}")
+                    file_text = "\n".join(ai_text) if ai_text else "[No se detectó texto en el archivo AI]"
+                else:
+                    file_text = "[Archivo AI procesado pero OCR no disponible]"
+            except Exception as e:
+                file_text = f"[Error procesando archivo AI: {e}]"
 
         elif ext == 'svg':
             try:
-                img = Image.open(filepath)
-                text = pytesseract.image_to_string(img, lang='spa')
-                file_text += text
-            except Exception as svg_error:
-                file_text += f"[Archivo SVG recibido, conversión no disponible: {svg_error}]"
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    svg_content = f.read()
+                # Buscar texto en SVG
+                import re
+                text_matches = re.findall(r'<text[^>]*>(.*?)</text>', svg_content, re.DOTALL)
+                if text_matches:
+                    file_text = "\n".join(text_matches)
+                else:
+                    file_text = "[Archivo SVG sin texto]"
+            except Exception as e:
+                file_text = f"[Error procesando SVG: {e}]"
+
+        elif ext == 'indd':
+            file_text = "[Archivo InDesign - Exporta a PDF para procesarlo]"
 
         else:
-            file_text += f"[Archivo recibido pero formato '{ext}' no soportado para extracción de texto.]"
+            file_text = f"[Tipo de archivo '{ext}' no soportado]"
 
     except Exception as e:
-        print(f"Error procesando archivo {ext}: {e}")
-        file_text += f"[Error procesando archivo: {e}]"
+        print(f"❌ Error general procesando {filename}: {e}")
+        file_text = f"[Error procesando archivo: {e}]"
 
+    print(f"📄 Texto extraído: {len(file_text)} caracteres")
     return file_text
 
 # --------------------------
@@ -211,12 +324,10 @@ def home():
 
 @app.route('/preguntar', methods=['POST'])
 def preguntar():
-    """
-    Ruta principal para preguntas con búsqueda automática en Serper
-    """
+    """Ruta para preguntas simples sin archivos"""
     data = request.json
     pregunta = data.get('pregunta')
-    usar_serper = data.get('usar_serper', True)  # 🔥 POR DEFECTO BUSCA EN SERPER
+    usar_serper = data.get('usar_serper', True)
     
     if not pregunta:
         return jsonify({"error": "No se recibió pregunta"}), 400
@@ -225,7 +336,6 @@ def preguntar():
     print(f"🔍 Pregunta: {pregunta}")
     print(f"🔍 Usar Serper: {usar_serper}")
 
-    # 🔥 SIEMPRE BUSCA EN SERPER (salvo que explícitamente se diga que no)
     if usar_serper:
         print("🔍 Buscando en Serper...")
         resultados, error = buscar_serper(pregunta, api_key)
@@ -237,53 +347,46 @@ def preguntar():
 
 Pregunta del usuario: {pregunta}
 
-Responde usando esta información actualizada. Si la información no es suficiente, 
-combínala con tu conocimiento pero prioriza la información de Internet."""
+Responde usando esta información actualizada."""
         else:
-            print(f"❌ No se encontraron resultados en Serper: {error}")
-            prompt = f"""No se pudo obtener información actualizada de Internet.
-Pregunta: {pregunta}
-Responde con tu conocimiento, pero menciona que no tienes información actualizada."""
+            print(f"❌ Error en Serper: {error}")
+            prompt = f"Pregunta: {pregunta}\nResponde con tu conocimiento."
     else:
-        print("🔍 Saltando búsqueda en Serper por solicitud del usuario")
         prompt = pregunta
 
-    # Llamar a Ollama
     response_ollama = llamar_a_ollama(prompt)
     
     return jsonify({
         "respuesta": response_ollama,
-        "busqueda_realizada": usar_serper,
-        "serper_usado": usar_serper and resultados is not None
+        "busqueda_realizada": usar_serper
     })
 
 @app.route('/api/generar-texto', methods=['POST'])
 def generar_texto():
-    """
-    Ruta para generar texto con archivos y búsqueda opcional
-    """
-    # Manejar tanto JSON como form-data
+    """Ruta principal para texto + archivos"""
+    
+    # Obtener datos del request
     if request.is_json:
         data = request.get_json()
         prompt = data.get('prompt', '').strip()
-        usar_serper = data.get('usar_serper', True)  # 🔥 POR DEFECTO BUSCA EN SERPER
+        usar_serper = data.get('usar_serper', True)
+        file = None
     else:
         prompt = request.form.get('prompt', '').strip()
         usar_serper = request.form.get('usar_serper', 'true').lower() == 'true'
+        file = request.files.get('file')
 
     if not prompt:
         return jsonify({"error": "No se recibió prompt"}), 400
 
-    file = request.files.get('file')
-    api_key = "3afe5888cc608256a0ae579173d4fb0c7186a9d0"
-    
     print(f"🔍 Prompt: {prompt}")
     print(f"🔍 Usar Serper: {usar_serper}")
-    print(f"🔍 Archivo: {file.filename if file else 'No'}")
+    print(f"📄 Archivo: {file.filename if file else 'No'}")
 
-    # 🔥 BUSCAR EN SERPER PRIMERO
+    # Buscar en Serper si está habilitado
     search_info = ""
     if usar_serper:
+        api_key = "3afe5888cc608256a0ae579173d4fb0c7186a9d0"
         print("🔍 Buscando en Serper...")
         resultados, error = buscar_serper(prompt, api_key)
         if resultados:
@@ -294,76 +397,77 @@ def generar_texto():
 
     # Procesar archivo si existe
     file_text = ""
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
+    if file and file.filename:
+        if allowed_file(file.filename):
+            try:
+                # Guardar archivo temporalmente
+                filename = secure_filename(file.filename)
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+                
+                print(f"📄 Archivo guardado: {filepath}")
+                
+                # Extraer texto
+                file_text = extract_text_from_file(filepath, filename)
+                
+                # Limpiar archivo temporal
+                try:
+                    os.remove(filepath)
+                    print(f"🗑️  Archivo temporal eliminado")
+                except Exception as e:
+                    print(f"⚠️  Error eliminando archivo temporal: {e}")
+                    
+            except Exception as e:
+                print(f"❌ Error procesando archivo: {e}")
+                file_text = f"[Error procesando archivo: {e}]"
+        else:
+            file_text = f"[Tipo de archivo '{file.filename}' no permitido]"
 
-        ext = filename.rsplit('.', 1)[1].lower()
-        file_text = extract_text_from_file(filepath, ext)
-
-        try:
-            os.remove(filepath)
-        except Exception as e:
-            print(f"Error eliminando archivo temporal: {e}")
-
-    # Combinar toda la información
-    combined_prompt = f"{search_info}{file_text}\n\nUsuario pregunta: {prompt}" if (search_info or file_text) else prompt
+    # Combinar información
+    combined_info = []
+    if search_info:
+        combined_info.append(search_info)
+    if file_text:
+        combined_info.append(f"Contenido del archivo:\n{file_text}")
+    
+    if combined_info:
+        combined_prompt = f"{''.join(combined_info)}\n\nPregunta del usuario: {prompt}"
+    else:
+        combined_prompt = prompt
 
     # Llamar a Ollama
-    system_message = {
-        "role": "system",
-        "content": "Eres un experto arquitecto y diseñador, pero también sabes sobre todos los temas del mundo. "
-                   "Ayuda con preguntas técnicas y creativas sobre arquitectura y otros temas. "
-                   "Habla como una persona normal, responde en el idioma en que se te habla y no hagas saludos largos. "
-                   "Si tienes información actualizada de Internet, úsala para dar respuestas precisas."
-    }
-    user_message = {
-        "role": "user",
-        "content": combined_prompt
-    }
-
-    try:
-        response = requests.post(
-            'http://127.0.0.1:11434/v1/chat/completions',
-            json={
-                "model": "llama3",
-                "messages": [system_message, user_message]
-            },
-            timeout=30
-        )
-
-        if response.status_code == 200:
-            respuesta = response.json()['choices'][0]['message']['content']
-        else:
-            respuesta = f"Error del servidor del modelo: {response.status_code}"
-
-    except Exception as e:
-        print(f"Error llamando al modelo: {e}")
-        respuesta = "Error al generar respuesta del modelo"
-
+    response_ollama = llamar_a_ollama(combined_prompt)
+    
     return jsonify({
-        'respuesta': respuesta,
+        'respuesta': response_ollama,
         'busqueda_realizada': usar_serper,
-        'archivo_procesado': bool(file_text)
+        'archivo_procesado': bool(file_text),
+        'archivo_info': {
+            'nombre': file.filename if file else None,
+            'caracteres_extraidos': len(file_text) if file_text else 0
+        }
     })
-
-# --------------------------
-# Rutas de archivos
-# --------------------------
 
 @app.route("/upload", methods=["POST"])
 def upload_file():
+    """Ruta específica para subir archivos DXF y obtener info estructurada"""
     file = request.files.get("file")
-    if not file:
+    if not file or not file.filename:
         return jsonify({"error": "No se envió ningún archivo."}), 400
+
+    if not allowed_file(file.filename):
+        return jsonify({"error": "Tipo de archivo no permitido."}), 400
 
     filename = secure_filename(file.filename)
     filepath = os.path.join(UPLOAD_FOLDER, filename)
-    file.save(filepath)
-
+    
     try:
+        file.save(filepath)
+        
         if filename.lower().endswith(".dxf"):
+            if not HAS_EZDXF:
+                return jsonify({"error": "ezdxf no disponible."}), 500
+                
             doc = ezdxf.readfile(filepath)
             msp = doc.modelspace()
             entidades = []
@@ -395,8 +499,10 @@ def upload_file():
         return jsonify({"error": f"No se pudo procesar el archivo: {str(e)}"}), 500
 
     finally:
+        # Limpiar archivo temporal
         try:
-            os.remove(filepath)
+            if os.path.exists(filepath):
+                os.remove(filepath)
         except Exception as e:
             print(f"Error eliminando archivo temporal: {e}")
 
@@ -440,7 +546,7 @@ def register():
         recipients=[email]
     )
     msg.body = f"Hola {name}, gracias por registrarte!"
-    msg.html = f"<h1>Hola {name}</h1><p>Gracias por registrarte en nuestra página! ¿Estás preparad@ para comenzar a aprender con nuestra IA?</p>"
+    msg.html = f"<h1>Hola {name}</h1><p>¡Gracias por registrarte!</p>"
 
     try:
         mail.send(msg)
@@ -495,10 +601,6 @@ def login():
 def logout():
     session.pop('username', None)
     return redirect('/')
-
-# --------------------------
-# Ejecutar
-# --------------------------
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5050)
