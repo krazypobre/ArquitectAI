@@ -190,9 +190,9 @@ def extract_text_from_file(filepath, ext):
 # Rutas
 # --------------------------
 
-@app.route("/")
+@app.route('/')
 def home():
-    return render_template('index.html')
+    return render_template('index.html', username=session.get('username'))
 
 @app.route('/preguntar', methods=['POST'])
 def preguntar():

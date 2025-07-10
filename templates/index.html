@@ -895,7 +895,7 @@
                 <img src="/static/logo3.png" alt="Logo" style="width: 35px; height: auto;"/>
                 <div class="user-details">
                     <div class="user-name">
-                      {{ session.username }}
+                      {{ username }}
                     </div>
                     <div class="user-email">ArquitectAI🧱</div>
                 </div>
@@ -1421,7 +1421,6 @@ function switchTab(tab) {
     }
 }
 
-// Ejemplo para handleLogin
 function handleLogin(event) {
     event.preventDefault();
     const email = document.getElementById('loginEmail').value;
@@ -1436,23 +1435,25 @@ function handleLogin(event) {
     loginButton.disabled = true;
     loginButton.innerHTML = '<div class="loading-spinner"></div>';
 
-    fetch('/login', { // Asegúrate que la URL sea correcta
+    fetch('/login', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json' // ¡Importante!
+            'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ email, password }) // ¡Importante!
+        body: JSON.stringify({ email, password })
     })
-    .then(response => response.json().then(data => ({ status: response.status, body: data }))) // Captura el status y el body
+    .then(response => response.json().then(data => ({ status: response.status, body: data })))
     .then(({ status, body }) => {
         if (status === 200) {
             authSuccess.textContent = body.message;
             authSuccess.style.display = 'block';
             localStorage.setItem('isLoggedIn', 'true');
-            // Aquí podrías guardar user.name y user.email si los devuelves
+
+            // ✅ Cambia esto: recarga la página tras éxito
             setTimeout(() => {
-                authOverlay.style.display = 'none';
-            }, 1500);
+                window.location.href = '/';  // ⏪ Fuerza reload para que {{ username }} funcione
+            }, 1000);
+
         } else {
             authError.textContent = body.error || 'Error desconocido.';
             authError.style.display = 'block';
