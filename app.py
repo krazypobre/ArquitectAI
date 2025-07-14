@@ -7,6 +7,8 @@ from werkzeug.utils import secure_filename
 from PyPDF2 import PdfReader
 import json
 from flask import session
+import pytesseract
+from PIL import Image
 
 # Importaciones opcionales para archivos especiales
 try:
@@ -52,7 +54,14 @@ except ImportError:
     HAS_EZDXF = False
     print("⚠️  ezdxf no disponible. Archivos DWG/DXF no se procesarán.")
 
-UPLOAD_FOLDER = 'uploads'
+# 📂 Carpeta de subida
+UPLOAD_FOLDER = './uploads'
+
+# ✅ Crear carpeta si no existe
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+# 📄 Extensiones permitidas
 ALLOWED_EXTENSIONS = {
     'pdf', 'dwg', 'dxf', 'png', 'jpg', 'jpeg', 'bmp',
     'svg', 'tiff', 'webp', 'heic', 'gif', 'docx', 'pptx',
@@ -154,6 +163,42 @@ def llamar_a_ollama(prompt):
             return f"Error del servidor del modelo: {response.status_code}"
     except Exception as e:
         return f"Error llamando al modelo: {e}"
+
+def procesar_archivo(filepath, extension):
+    contenido = ""
+
+    if extension == 'pdf':
+        try:
+            reader = PdfReader(filepath)
+            for page in reader.pages:
+                contenido += page.extract_text() or ''
+        except Exception as e:
+            contenido = f"Error leyendo PDF: {e}"
+
+    elif extension in ['png', 'jpg', 'jpeg']:
+        try:
+            image = Image.open(filepath)
+            contenido = pytesseract.image_to_string(image)
+        except Exception as e:
+            contenido = f"Error haciendo OCR a imagen: {e}"
+
+    elif extension in ['dwg', 'dxf']:
+        try:
+            import ezdxf
+            doc = ezdxf.readfile(filepath)
+            contenido = "Entidades DXF encontradas:\n"
+            for entity in doc.modelspace():
+                contenido += f"{entity.dxftype()} - Layer: {entity.dxf.layer}\n"
+        except Exception as e:
+            contenido = f"Error leyendo DXF/DWG: {e}"
+
+    else:
+        contenido = "Tipo de archivo no soportado para lectura."
+
+    return contenido
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def extract_text_from_file(filepath, filename):
     """
@@ -450,7 +495,6 @@ def generar_texto():
 
 @app.route("/upload", methods=["POST"])
 def upload_file():
-    """Ruta específica para subir archivos DXF y obtener info estructurada"""
     file = request.files.get("file")
     if not file or not file.filename:
         return jsonify({"error": "No se envió ningún archivo."}), 400
@@ -460,51 +504,123 @@ def upload_file():
 
     filename = secure_filename(file.filename)
     filepath = os.path.join(UPLOAD_FOLDER, filename)
-    
+
     try:
         file.save(filepath)
-        
-        if filename.lower().endswith(".dxf"):
+
+        extension = filename.lower().rsplit('.', 1)[1]
+
+        resumen = f"INFORME DEL ARCHIVO ({filename}):\n"
+
+        # PDF
+        if extension == "pdf":
+            if not HAS_PDF:
+                return jsonify({"error": "PyPDF2 no disponible."}), 500
+            reader = PdfReader(filepath)
+            for i, page in enumerate(reader.pages):
+                texto = page.extract_text()
+                resumen += f"\n--- Página {i+1} ---\n{texto.strip() if texto else '[Sin texto]'}\n"
+
+        # Imagen OCR
+        elif extension in {"png", "jpg", "jpeg"}:
+            if not HAS_PIL:
+                return jsonify({"error": "PIL/pytesseract no disponible."}), 500
+            image = Image.open(filepath)
+            texto = pytesseract.image_to_string(image, lang="eng+spa")
+            resumen += f"\nTexto extraído por OCR:\n{texto.strip()}"
+
+        # DWG o DXF (solo DXF manejado por ezdxf)
+        elif extension in {"dxf", "dwg"}:
             if not HAS_EZDXF:
                 return jsonify({"error": "ezdxf no disponible."}), 500
-                
             doc = ezdxf.readfile(filepath)
             msp = doc.modelspace()
             entidades = []
-
             for entity in msp:
                 tipo = entity.dxftype()
                 if tipo == "LINE":
                     start = entity.dxf.start
                     end = entity.dxf.end
                     length = ((end[0] - start[0]) ** 2 + (end[1] - start[1]) ** 2) ** 0.5
-                    entidades.append({
-                        "tipo": "línea",
-                        "inicio": [round(start[0], 2), round(start[1], 2)],
-                        "fin": [round(end[0], 2), round(end[1], 2)],
-                        "longitud": round(length, 2)
-                    })
+                    entidades.append(
+                        f"Línea: inicio({round(start[0],2)},{round(start[1],2)}) "
+                        f"fin({round(end[0],2)},{round(end[1],2)}) "
+                        f"longitud: {round(length,2)}"
+                    )
                 elif tipo in ("TEXT", "MTEXT"):
                     texto = entity.dxf.text if tipo == "TEXT" else entity.text
-                    entidades.append({
-                        "tipo": "texto",
-                        "contenido": texto
-                    })
+                    entidades.append(f"Texto: \"{texto.strip()}\"")
 
-            return jsonify({"resultado": entidades})
+            resumen += "\nEntidades CAD:\n" + "\n".join(entidades)
+
+        # PSD (Photoshop)
+        elif extension == "psd":
+            if not HAS_PSD:
+                return jsonify({"error": "psd_tools no disponible."}), 500
+            psd = PSDImage.open(filepath)
+
+            def render_layer(layer, indent=0):
+                prefix = "  " * indent
+                result = f"{prefix}- {layer.name} | "
+                if layer.is_group():
+                    result += "Grupo\n"
+                    for child in layer:
+                        result += render_layer(child, indent + 1)
+                else:
+                    if layer.has_text:
+                        result += f"Texto: \"{layer.text_data.text.strip()}\"\n"
+                    else:
+                        result += f"Raster | Tamaño: {layer.bbox.width}x{layer.bbox.height}\n"
+                return result
+
+            for layer in psd:
+                resumen += render_layer(layer)
+
+        # AI (Illustrator) y INDD (InDesign) - solo metainfo básica, no hay parser nativo
+        elif extension in {"ai", "indd"}:
+            resumen += (
+                "\nEste archivo es de Adobe Illustrator o InDesign.\n"
+                "Para un análisis profundo, se requiere usar librerías de Adobe o APIs externas.\n"
+                "Actualmente solo se maneja como archivo recibido.\n"
+            )
+
         else:
-            return jsonify({"mensaje": "Archivo recibido pero no es DXF."})
+            resumen += "\nArchivo recibido, pero sin analizador disponible."
+
+        return jsonify({"resultado": resumen.strip()})
 
     except Exception as e:
         return jsonify({"error": f"No se pudo procesar el archivo: {str(e)}"}), 500
 
     finally:
-        # Limpiar archivo temporal
         try:
             if os.path.exists(filepath):
                 os.remove(filepath)
         except Exception as e:
             print(f"Error eliminando archivo temporal: {e}")
+
+@app.route('/procesar', methods=['POST'])
+def procesar():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No se envió archivo'}), 400
+
+    file = request.files['file']
+
+    if file.filename == '':
+        return jsonify({'error': 'Nombre de archivo vacío'}), 400
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        save_path = os.path.join(UPLOAD_FOLDER, filename)
+        file.save(save_path)
+
+        extension = filename.rsplit('.', 1)[1].lower()
+        contenido = procesar_archivo(save_path, extension)
+
+        return jsonify({'contenido': contenido})
+
+    else:
+        return jsonify({'error': 'Extensión no permitida'}), 400
 
 # --------------------------
 # Rutas de autenticación
