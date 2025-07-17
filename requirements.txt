@@ -7,15 +7,10 @@ pytesseract
 python-docx
 python-pptx
 ezdxf
-pyautocad
 psd-tools
 pikepdf
 pdf2image
 requests
 Flask-Mail
-Tesseract
-docx
 pdfplumber
-poppler_utils
-Tesseract_ocr
 ghostscript

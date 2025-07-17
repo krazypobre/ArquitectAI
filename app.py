@@ -718,5 +718,22 @@ def logout():
     session.pop('username', None)
     return redirect('/')
 
+@app.route("/update_profile", methods=["POST"])
+def update_profile():
+    try:
+        data = request.get_json()
+        new_username = data.get("username")
+
+        if not new_username:
+            return jsonify({"error": "Nombre de usuario no proporcionado"}), 400
+
+        # Simulación: aquí guardarías en base de datos real
+        session['username'] = new_username
+
+        return jsonify({"message": "Nombre de usuario actualizado correctamente."})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5050)
