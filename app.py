@@ -56,6 +56,7 @@ except ImportError:
 
 # 📂 Carpeta de subida
 UPLOAD_FOLDER = './uploads'
+UPLOAD_FOLDER = 'static/avatars'
 
 # ✅ Crear carpeta si no existe
 if not os.path.exists(UPLOAD_FOLDER):
@@ -599,6 +600,23 @@ def upload_file():
         except Exception as e:
             print(f"Error eliminando archivo temporal: {e}")
 
+@app.route('/upload_avatar', methods=['POST'])
+def upload_avatar():
+    file = request.files.get('avatar')
+    email = request.form.get('email')  # Asume que viene el email para asociar
+
+    if not file or not allowed_file(file.filename):
+        return jsonify({'error': 'Archivo inválido'}), 400
+
+    filename = secure_filename(f"{email}_{file.filename}")
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file.save(filepath)
+
+    # Aquí deberías guardar la ruta en la base de datos asociada al email
+    # Por ejemplo: UPDATE users SET avatar_url = '/static/avatars/...' WHERE email = email
+
+    return jsonify({'avatar_url': f'/static/avatars/{filename}'})
+
 @app.route('/procesar', methods=['POST'])
 def procesar():
     if 'file' not in request.files:
@@ -734,6 +752,11 @@ def update_profile():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+def determinar_si_usar_serper(prompt):
+    if prompt.lower().strip() in ["hola", "buenas", "hey", "hi", "¿cómo estás?", "saludos"]:
+        return False
+    return True
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5050)

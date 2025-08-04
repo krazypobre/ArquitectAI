@@ -59,8 +59,12 @@
     }
 
     .auth-logo {
-        font-size: 48px;
-        margin-bottom: 16px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            text-align: center;
     }
 
     .auth-title {
@@ -203,14 +207,23 @@
     }
 
     /* Sidebar */
-    .sidebar {
-        width: 260px;
-        background-color: #202123;
-        border-right: 1px solid #4d4d4f;
-        display: flex;
-        flex-direction: column;
-        transition: transform 0.3s ease;
-    }
+        .sidebar {
+            width: 260px;
+            background: #202123;
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100%;
+            height: 100vh;
+            height: -webkit-fill-available;
+            height: -moz-available;
+            height: fill-available;
+            transform: translateX(-100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1001;
+            will-change: transform;
+            overflow-y: auto;
+        }
 
     .sidebar.hidden {
         transform: translateX(-100%);
@@ -423,6 +436,12 @@
         font-size: 16px;
     }
 
+@media (max-width: 768px) {
+    .mobile-sidebar-toggle {
+        display: flex; /* Solo visible en móvil */
+    }
+}
+
     .mobile-sidebar-toggle:hover {
         background-color: #40414f;
     }
@@ -508,12 +527,6 @@
         font-weight: bold;
     }
 
-    .assistant-avatar-msg {
-        background: #10a37f;
-        color: white;
-        font-weight: bold;
-    }
-
     .message-content {
         flex: 1;
         line-height: 1.6;
@@ -543,11 +556,14 @@
     }
 
     /* Input area */
-    .input-container {
-        padding: 20px;
-        background-color: #343541;
-        border-top: 1px solid #4d4d4f;
-    }
+            .input-container {
+            padding: 16px;
+            background: #282828;
+            position: sticky;
+            bottom: 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
 
     .input-wrapper {
         max-width: 800px;
@@ -561,7 +577,7 @@
     .chat-input {
         flex: 1;
         padding: 12px 48px 12px 16px;
-        background-color: #40414f;
+        background-color: #282828;
         border: 1px solid #565869;
         border-radius: 12px;
         color: #ececf1;
@@ -640,22 +656,37 @@
         color: #ececf1;
     }
 
+    /* La barra de entrada flotando debajo de los prompts */
+.welcome-input {
+    position: relative;
+    bottom: auto;
+    margin-top: 24px;
+    width: 100%;
+    max-width: 500px;
+}
+
     .example-prompts {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 16px;
-        max-width: 800px;
-        width: 100%;
-    }
+    display: flex;
+    flex-direction: column;
+    align-items: center;         /* Centra horizontalmente */
+    justify-content: center;     /* Centra verticalmente si se desea en pantalla completa */
+    gap: 12px;
+    margin-top: 20px;
+}
 
     .example-prompt {
-        padding: 16px;
-        background-color: #40414f;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: background-color 0.2s;
-        border: 1px solid #565869;
-    }
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background-color: #282828;
+    border-radius: 8px;
+    border: 1px solid #565869;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    width: fit-content;          /* Hace que la caja solo ocupe lo que necesita */
+    max-width: 90%;
+}
 
     .example-prompt:hover {
         background-color: #4a4b5a;
@@ -673,6 +704,17 @@
         color: #c5c5d2;
     }
 
+    .example-prompt img {
+    width: 20px;
+    height: auto;
+}
+
+.example-prompt span {
+    font-size: 14px;
+    font-weight: 500;
+    color: #ececf1;
+}
+
     /* File preview */
     .file-preview {
         margin: 10px 0;
@@ -685,6 +727,12 @@
     .file-preview img {
         max-width: 200px;
         border-radius: 6px;
+    }
+
+        img {
+        max-width: 100%; /* Asegura que la imagen no sea más ancha que su contenedor */
+        height: auto; /* Mantiene la proporción de la imagen */
+        display: block; /* Elimina el espacio extra debajo de la imagen */
     }
 
     /* Dropdown para opciones de chat */
@@ -738,17 +786,6 @@
         display: block;
     }
 
-    /* Media queries */
-    @media (max-width: 768px) {
-        .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100vh;
-            z-index: 999;
-            transform: translateX(-100%);
-        }
-
         .sidebar.visible {
             transform: translateX(0);
         }
@@ -758,23 +795,57 @@
         }
 
         .header {
-            flex-direction: column;
-            gap: 12px;
+            flex-direction: column; /* Cambia la dirección del header a columna */
+            gap: 12px; /* Espaciado entre elementos del header */
         }
 
         .header-buttons {
-            width: 100%;
-            justify-content: center;
+            width: 100%; /* Los botones ocupan todo el ancho */
+            justify-content: center; /* Centra los botones */
         }
 
         .message {
-            padding: 16px;
+            padding: 16px; /* Reduce el padding de los mensajes */
         }
 
         .app-title {
-            font-size: 20px;
+            font-size: 20px; /* Reduce el tamaño del título de la app */
         }
-    }
+
+        /* Añadir más ajustes aquí */
+        .auth-modal {
+            margin: 10px; /* Reduce el margen del modal de autenticación */
+            padding: 20px; /* Reduce el padding del modal */
+        }
+
+        .welcome-subtitle {
+            font-size: 24px; /* Ajusta el tamaño del subtítulo de bienvenida */
+        }
+
+        .s {
+            grid-template-columns: 1fr; /* Una columna para los prompts de ejemplo */
+            padding: 0 10px; /* Añade padding horizontal */
+        }
+
+        .input-container {
+            padding: 10px; /* Reduce el padding del contenedor de entrada */
+        }
+
+        .input-wrapper {
+            flex-direction: row; /* Asegura que los elementos del input estén en fila */
+            align-items: flex-end; /* Alinea los elementos al final */
+        }
+
+        .chat-input {
+            padding: 10px 40px 10px 10px; /* Ajusta el padding del input de chat */
+            min-height: 40px; /* Ajusta la altura mínima */
+        }
+
+        .file-input-btn, .send-button {
+            width: 36px; /* Reduce el tamaño de los botones de archivo y enviar */
+            height: 36px;
+        }
+
     .user-profile-overlay {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
@@ -839,6 +910,26 @@
         .toast.hidden {
             display: none;
         }
+
+    .circular-avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #10a37f;
+}
+
+.avatar-upload-btn {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 30px;
+  height: 30px;
+  background: #202123;
+  border-radius: 50%;
+  padding: 4px;
+}
+
   </style>
 </head>
 <body>
@@ -973,20 +1064,13 @@
     <!-- Área principal -->
     <div class="main-area">
         <!-- Header con título y botones principales -->
+             <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar(event)"></div>
         <div class="header">
             <div class="header-left">
-                <button class="mobile-sidebar-toggle" onclick="toggleMobileSidebar()">
-                    ☰
-                </button>
-                <img src="/static/logo.png" alt="Logo" style="width: 40px; height: auto;"/>
+            <img src="/static/logo3.png" alt="Logo" class="logo" onclick="toggleSidebar()" style="width: 40px; height: auto; cursor: pointer;">
                 <h1 class="app-title">ArquitectAI</h1>
             </div>
-
             <div class="header-buttons">
-                <button class="header-btn" onclick="showChatHistory()">
-                    <span>📋</span>
-                    Historial
-                </button>
             </div>
         </div>
 
@@ -997,57 +1081,56 @@
                     <h2 class="welcome-subtitle">¿En qué puedo ayudarte hoy?</h2>
 
                     <div class="example-prompts">
-                        <div class="example-prompt" onclick="sendExampleMessage('Hola! Necesito que me expliques unos conceptos')">
-                            <h3>💡 Explicar conceptos</h3>
-                            <p>¿Qué conceptos necesitas saber?</p>
-                        </div>
+    <div class="example-prompt" onclick="sendExampleMessage('Hola! Necesito que me expliques unos conceptos')">
+        <img src="/static/Concepts.png" alt="Concepts">
+        <span>Explicar conceptos</span>
+    </div>
 
-                        <div class="example-prompt" onclick="sendExampleMessage('Ayúdame a acotar un plano')">
-                            <h3>📏 Ayuda con acotaciones</h3>
-                            <p>Ayúdame a acotar un plano</p>
-                        </div>
+    <div class="example-prompt" onclick="sendExampleMessage('Ayúdame a acotar un plano')">
+        <img src="/static/Regla.png" alt="Regla">
+        <span>Outlinie plans</span>
+    </div>
 
-                        <div class="example-prompt" onclick="sendExampleMessage('Dame ideas creativas para un proyecto')">
-                            <h3>🎨 Ideas creativas</h3>
-                            <p>¿Necesitas ideas creativas para un proyecto?</p>
-                        </div>
+    <div class="example-prompt" onclick="sendExampleMessage('Dame ideas creativas para un proyecto')">
+        <img src="/static/Pincel.png" alt="Pincel">
+        <span>Creative ideas</span>
+    </div>
 
-                        <div class="example-prompt" onclick="sendExampleMessage('Hola! Te voy a preguntar sobre un artista, quiero que me cuentes todo lo que sepas de el')">
-                            <h3>🌍 Información sobre artistas</h3>
-                            <p>¿Necesitas información?</p>
-                        </div>
-                    </div>
+    <div class="example-prompt" onclick="sendExampleMessage('Hola! Te voy a preguntar sobre un artista, quiero que me cuentes todo lo que sepas de el')">
+        <img src="/static/World.png" alt="World">
+        <span>Information</span>
+    </div>
+</div>
                 </div>
             </div>
 
-            <!-- Área de entrada -->
-            <div class="input-container">
-                <div class="input-wrapper">
-                    <button class="file-input-btn" onclick="document.getElementById('fileInput').click()" title="Adjuntar archivo">
-                        📎
-                    </button>
-                    <input type="file" id="fileInput" class="file-input-hidden"
-                           accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg,.bmp,.svg,.tiff,.webp,.heic,.gif,.docx,.pptx,.psd,.indd"
-                           onchange="handleFileSelect(event)">
+                <!-- Barra de entrada flotante -->
+    <div class="input-container welcome-input" id="welcomeInputContainer">
+        <div class="input-wrapper">
+            <button class="file-input-btn" onclick="document.getElementById('fileInput').click()" title="Adjuntar archivo">
+                📎
+            </button>
+            <input type="file" id="fileInput" class="file-input-hidden"
+                   accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg,.bmp,.svg,.tiff,.webp,.heic,.gif,.docx,.pptx,.psd,.indd"
+                   onchange="handleFileSelect(event)">
 
-                    <textarea
-                        class="chat-input"
-                        id="chatInput"
-                        placeholder="Envía un mensaje..."
-                        rows="1"
-                        onkeydown="handleKeyDown(event)"
-                        oninput="adjustTextareaHeight()"
-                    ></textarea>
+            <textarea
+                class="chat-input"
+                id="chatInput"
+                placeholder="Envía un mensaje..."
+                rows="1"
+                onkeydown="handleKeyDown(event)"
+                oninput="adjustTextareaHeight()"
+            ></textarea>
 
-                    <button class="send-button" id="sendButton" onclick="sendMessage()" title="Enviar mensaje">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
+            <button class="send-button" id="sendButton" onclick="sendMessage()" title="Enviar mensaje">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                </svg>
+            </button>
         </div>
     </div>
+</div>
 
     <!-- User Profile Modal -->
     <div class="user-profile-overlay hidden" id="userProfileOverlay">
@@ -1065,7 +1148,37 @@
                 <button type="submit" class="auth-button">Guardar Cambios</button>
                 <button type="button" class="auth-button" style="background-color: #565869; margin-top: 10px;" onclick="closeUserProfile()">Cerrar</button>
             </form>
-        </div>
+         <div class="form-group" style="text-align: center; margin-top: 20px; position: relative;">
+  <input type="file" id="profileAvatar" accept="image/*" style="display: none;" onchange="previewAvatar(event)">
+  
+  <label for="profileAvatar" style="cursor: pointer; display: inline-block; position: relative;">
+    <img id="avatarImg"
+         src="/static/default-avatar.png"
+         style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 2px solid #10a37f;">
+    
+    <!-- Ícono flotante encima del avatar -->
+    <div style="
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 28px;
+      height: 28px;
+      background-color: #10a37f;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #202123;
+    ">
+      <img src="/static/icons/upload-icon.png" alt="Subir" style="width: 16px; height: 16px;">
+    </div>
+  </label>
+
+  <p style="margin-top: 8px; font-size: 13px; color: #9ca3af;">Haz clic en el avatar para cambiar tu foto</p>
+</div>
+
+</div>
+
     </div>
 
     <!-- Toast Notification -->
@@ -1089,6 +1202,24 @@
 
         function saveChats() {
             localStorage.setItem('arquitectAI_chats', JSON.stringify(chats));
+        }
+
+        // Función para alternar el sidebar
+        function toggleSidebar(event) {
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.toggle('visible');
+            overlay.classList.toggle('visible');
+            
+            if (sidebar.classList.contains('visible')) {
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.body.style.overflow = '';
+            }
         }
 
         function createNewChat() {
@@ -1155,6 +1286,28 @@
             return 'Entiendo. Para poder ayudarte mejor, ¿podrías darme más detalles sobre lo que necesitas o reformular tu pregunta? Estoy aquí para asistirte en temas de arquitectura.';
          }
 
+          // Ajustar altura dinámicamente
+        function adjustHeight() {
+            const appContainer = document.querySelector('.app-container');
+            const vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+            
+            // Ajustar para Safari
+            const documentHeight = Math.max(
+                document.body.scrollHeight, 
+                document.body.offsetHeight, 
+                document.documentElement.clientHeight, 
+                document.documentElement.scrollHeight, 
+                document.documentElement.offsetHeight
+            );
+            
+            appContainer.style.minHeight = `${documentHeight}px`;
+        }
+        // Ejecutar al cargar y al cambiar el tamaño
+        window.addEventListener('load', adjustHeight);
+        window.addEventListener('resize', adjustHeight);
+        window.addEventListener('orientationchange', adjustHeight);
+
         function selectChat(id) {
             if (currentChatId === id) return;
             currentChatId = id;
@@ -1194,6 +1347,84 @@
                 chatList.appendChild(chatItem);
             });
         }
+
+        let cropper;
+let originalFile;
+
+function previewAvatar(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  originalFile = file;
+
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const img = document.getElementById('cropperImage');
+    img.src = e.target.result;
+    document.getElementById('cropperModal').classList.remove('hidden');
+
+    // Esperar a que la imagen cargue para inicializar cropper
+    img.onload = function () {
+      if (cropper) cropper.destroy();
+      cropper = new Cropper(img, {
+        aspectRatio: 1,
+        viewMode: 1,
+        background: false,
+        dragMode: 'move',
+        autoCropArea: 1,
+      });
+    };
+  };
+
+  reader.readAsDataURL(file);
+}
+
+function closeCropper() {
+  document.getElementById('cropperModal').classList.add('hidden');
+  if (cropper) cropper.destroy();
+}
+
+function confirmCrop() {
+  if (!cropper) return;
+
+  const canvas = cropper.getCroppedCanvas({
+    width: 200,
+    height: 200,
+    imageSmoothingQuality: 'high'
+  });
+
+  const dataURL = canvas.toDataURL('image/png');
+
+  // Mostrar vista previa redonda
+  document.getElementById('avatarImg').src = dataURL;
+  document.querySelector('.user-info img').src = dataURL;
+
+  // Guardar en localStorage por ahora
+  localStorage.setItem('avatar_url', dataURL);
+
+  // Opcional: convertir a Blob y enviar al backend
+  canvas.toBlob(function(blob) {
+    const formData = new FormData();
+    formData.append('avatar', blob, 'avatar.png');
+    formData.append('email', localStorage.getItem('email'));
+
+    fetch('/upload_avatar', {
+      method: 'POST',
+      body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.avatar_url) {
+        localStorage.setItem('avatar_url', data.avatar_url);
+        document.getElementById('avatarImg').src = data.avatar_url;
+        document.querySelector('.user-info img').src = data.avatar_url;
+        showToast('Avatar actualizado');
+      }
+    });
+  });
+
+  closeCropper();
+}
 
         function toggleChatOptionsMenu(event, chatId) {
             event.stopPropagation(); // Prevent selecting the chat when clicking the menu button
@@ -1280,28 +1511,28 @@
                 <div class="welcome-screen" id="welcomeScreen">
                     <h2 class="welcome-subtitle">¿En qué puedo ayudarte hoy?</h2>
 
-                    <div class="example-prompts">
-                        <div class="example-prompt" onclick="sendExampleMessage('Hola! Necesito que me expliques unos conceptos')">
-                            <h3>💡 Explicar conceptos</h3>
-                            <p>¿Qué conceptos necesitas saber?</p>
-                        </div>
+<div class="example-prompts">
+    <div class="example-prompt" onclick="sendExampleMessage('Hola! Necesito que me expliques unos conceptos')" style="display: flex; align-items: center; gap: 8px;">
+        <img src="/static/Concepts.png" alt="Concepts" style="width: 20px; height: auto;">
+        <span>Explicar conceptos</span>
+    </div>
 
-                        <div class="example-prompt" onclick="sendExampleMessage('Ayúdame a acotar un plano')">
-                            <h3>📏 Ayuda con acotaciones</h3>
-                            <p>Ayúdame a acotar un plano</p>
-                        </div>
+    <div class="example-prompt" onclick="sendExampleMessage('Ayúdame a acotar un plano')" style="display: flex; align-items: center; gap: 8px;">
+        <img src="/static/Regla.png" alt="Regla" style="width: 20px; height: auto;">
+        <span>Outlinie plans</span>
+    </div>
 
-                        <div class="example-prompt" onclick="sendExampleMessage('Dame ideas creativas para un proyecto')">
-                            <h3>🎨 Ideas creativas</h3>
-                            <p>¿Necesitas ideas creativas para un proyecto?</p>
-                        </div>
+    <div class="example-prompt" onclick="sendExampleMessage('Dame ideas creativas para un proyecto')" style="display: flex; align-items: center; gap: 8px;">
+        <img src="/static/Pincel.png" alt="Pincel" style="width: 20px; height: auto;">
+        <span>Creative ideas</span>
+    </div>
 
-                        <div class="example-prompt" onclick="sendExampleMessage('Hola! Te voy a preguntar sobre un artista, quiero que me cuentes todo lo que sepas de el')">
-                            <h3>🌍 Información sobre artistas</h3>
-                            <p>¿Necesitas información?</p>
-                        </div>
-                    </div>
-                </div>
+    <div class="example-prompt" onclick="sendExampleMessage('Hola! Te voy a preguntar sobre un artista, quiero que me cuentes todo lo que sepas de el')" style="display: flex; align-items: center; gap: 8px;">
+        <img src="/static/World.png" alt="World" style="width: 20px; height: auto;">
+        <span>Information</span>
+    </div>
+</div>
+
             `;
             isWelcomeVisible = true;
         }
@@ -1390,7 +1621,7 @@
                 avatar.textContent = 'U';
             } else {
                 avatar.className += ' assistant-avatar-msg';
-                avatar.innerHTML = '🏗️';
+                avatar.innerHTML = '<img src="/static/logo3.png" alt="Logo" style="width: 50px; height: auto;"/>';
             }
 
             const messageContent = document.createElement('div');
@@ -1404,10 +1635,17 @@
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
-        function hideWelcomeScreen() {
-            const welcome = document.getElementById('welcomeScreen');
-            if (welcome) welcome.remove();
-        }
+function hideWelcomeScreen() {
+    const welcome = document.getElementById('welcomeScreen');
+    if (welcome) welcome.remove();
+
+    // Mover la barra de input al fondo del chat
+    const inputContainer = document.getElementById('welcomeInputContainer');
+    if (inputContainer) {
+        document.querySelector('.main-content').appendChild(inputContainer);
+        inputContainer.classList.remove('welcome-input');
+    }
+}
 
         function addFilePreviewToDOM(fileName, fileType, fileURL) {
             const chatContainer = document.getElementById('chatContainer');
@@ -1524,6 +1762,9 @@
                     localStorage.setItem('isLoggedIn', 'true');
                     localStorage.setItem('username', body.username || 'Usuario'); // Guardar nombre de usuario
                     localStorage.setItem('email', email); // Guardar email
+                    localStorage.setItem('avatar_url', body.avatar_url || '/static/default-avatar.png');
+                    document.querySelector('.user-info img').src = body.avatar_url || '/static/default-avatar.png';
+
 
                     // Actualizar el nombre de usuario en la sidebar inmediatamente
                     document.getElementById('sidebarUsername').innerText = body.username || 'Usuario';
@@ -1621,7 +1862,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               pregunta: pregunta,
-              usar_serper: true  // 👈 Esto activa la búsqueda online
+              usar_serper: determinar_si_usar_serper(prompt) // 👈 Esto activa la búsqueda online
             })
           })
           .then(response => response.json())
@@ -1640,6 +1881,12 @@
                 const storedUsername = localStorage.getItem('username');
                 if (storedUsername) {
                     document.getElementById('sidebarUsername').innerText = storedUsername;
+                    const avatar = localStorage.getItem('avatar_url');
+if (avatar) {
+  document.querySelector('.user-info img').src = avatar;
+  document.getElementById('avatarImg').src = avatar;
+}
+
                 }
             } else {
                 authOverlay.style.display = 'flex'; // Mostrar el modal si no está logueado
@@ -1690,39 +1937,53 @@
             document.getElementById('userProfileOverlay').classList.add('hidden');
         }
 
-        function saveUserProfile() {
-            const newName = document.getElementById('profileName').value;
-            const savedEmail = localStorage.getItem('email'); // Usar el email guardado en localStorage
+        function logoutUser() {
+    const avatar = localStorage.getItem('avatar_url'); // opcional
+    localStorage.clear();
+    if (avatar) localStorage.setItem('avatar_url', avatar); // opcional: mantener imagen
+    location.reload();
+}
 
-            fetch('/update_profile', { // Asegúrate de que esta ruta exista en tu backend
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    // 'Authorization': `Bearer ${localStorage.getItem('token')}` // Descomentar si usas tokens de autenticación
-                },
-                body: JSON.stringify({
-                    username: newName,
-                    email: savedEmail // Enviar el email para identificar al usuario en el backend
-                })
-            })
-            .then(async res => {
-                if (!res.ok) {
-                    const errorData = await res.json();
-                    throw new Error(errorData.message || 'Error al actualizar el perfil');
-                }
-                return res.json();
-            })
-            .then(data => {
-                localStorage.setItem('username', newName);
-                document.getElementById('sidebarUsername').innerText = newName; // Actualizar el nombre en la sidebar
-                closeUserProfile();
-                showToast('¡Perfil actualizado con éxito!');
-            })
-            .catch(err => {
-                console.error('Error:', err);
-                showToast(err.message || 'Error al actualizar el perfil', 'error');
-            });
-        }
+        function saveUserProfile() {
+    const newName = document.getElementById('profileName').value;
+    const savedEmail = localStorage.getItem('email');
+    const avatarInput = document.getElementById('profileAvatar');
+    const formData = new FormData();
+
+    if (avatarInput.files[0]) {
+        formData.append('avatar', avatarInput.files[0]);
+        formData.append('email', savedEmail);
+
+        fetch('/upload_avatar', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.avatar_url) {
+                localStorage.setItem('avatar_url', data.avatar_url);
+                document.querySelector('.user-info img').src = data.avatar_url;
+            }
+        });
+    }
+
+    // Actualizar nombre (esto es tu endpoint existente)
+    fetch('/update_profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: newName, email: savedEmail })
+    })
+    .then(res => res.json())
+    .then(data => {
+        localStorage.setItem('username', newName);
+        document.getElementById('sidebarUsername').innerText = newName;
+        showToast('¡Perfil actualizado con éxito!');
+        closeUserProfile();
+    })
+    .catch(err => {
+        showToast('Error al guardar perfil', 'error');
+    });
+}
     </script>
 </body>
 </html>
